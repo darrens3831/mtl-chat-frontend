@@ -3,131 +3,907 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MTL Chat - Rencontres video Montreal</title>
+<title>MTL Chat - Rencontres vidéo Montréal</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #0a0a1a; color: #fff; min-height: 100vh; }
-  header { background: linear-gradient(135deg, #1a1a3e, #2d1b69); padding: 20px; text-align: center; border-bottom: 2px solid #4a3f8f; }
-  header h1 { font-size: 2em; color: #c084fc; }
-  header p { color: #a78bfa; margin-top: 5px; }
-  .hero { text-align: center; padding: 60px 20px; }
-  .hero h2 { font-size: 2.2em; margin-bottom: 20px; }
-  .hero p { font-size: 1.1em; color: #a78bfa; max-width: 600px; margin: 0 auto; }
-  .vip-section { padding: 40px 20px; max-width: 900px; margin: 0 auto; }
-  .vip-section h3 { text-align: center; font-size: 1.8em; color: #c084fc; margin-bottom: 30px; }
-  .plans { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-  .plan-card { background: #1a1a3e; border: 2px solid #4a3f8f; border-radius: 16px; padding: 30px; width: 240px; text-align: center; transition: transform 0.2s, border-color 0.2s; }
-  .plan-card:hover { transform: translateY(-5px); border-color: #c084fc; }
-  .plan-card h4 { font-size: 1.3em; color: #c084fc; margin-bottom: 10px; }
-  .plan-card .price { font-size: 2em; font-weight: bold; color: #fff; margin-bottom: 5px; }
-  .plan-card .duration { color: #a78bfa; margin-bottom: 20px; }
-  .plan-card ul { list-style: none; text-align: left; margin-bottom: 20px; }
-  .plan-card ul li { color: #d1d5db; padding: 4px 0; font-size: 0.95em; }
-  .plan-card ul li::before { content: "v "; color: #c084fc; }
-  .btn-pay { background: linear-gradient(135deg, #7c3aed, #c084fc); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 0.95em; cursor: pointer; width: 100%; font-weight: bold; transition: opacity 0.2s; }
-  .btn-pay:hover { opacity: 0.85; }
-  .btn-pay:disabled { opacity: 0.5; cursor: not-allowed; }
-  #vip-banner { display: none; background: linear-gradient(135deg, #065f46, #047857); border: 2px solid #10b981; border-radius: 12px; padding: 20px; margin: 20px auto; max-width: 600px; text-align: center; }
-  #vip-banner h3 { color: #10b981; font-size: 1.5em; }
-  #vip-banner p { color: #d1fae5; margin-top: 10px; }
-  .cancel-msg { display: none; background: #7f1d1d; border: 1px solid #ef4444; border-radius: 8px; padding: 15px; margin: 20px auto; max-width: 500px; text-align: center; color: #fca5a5; }
-  footer { text-align: center; padding: 30px 20px; color: #6b7280; border-top: 1px solid #1f2937; margin-top: 60px; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+    background: radial-gradient(circle at top, #1a1a2e, #0b0f1a 70%);
+    color: #fff; height: 100vh; overflow: hidden;
+  }
+  .screen { height: 100vh; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+  #lobby { align-items: center; justify-content: center; text-align: center; padding: 20px; position: relative; overflow: hidden; }
+  #lobby-bg { position: absolute; inset: 0; z-index: 0; }
+  #lobby-bg svg { width: 100%; height: 100%; display: block; }
+  .lobby-overlay { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(8,10,20,0.25) 0%, rgba(8,10,20,0.45) 55%, rgba(6,8,16,0.85) 100%); }
+  .lobby-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+  .logo { font-size: 42px; font-weight: 800; color: #e94560; letter-spacing: -1px; }
+  .tagline { color: #9ca3af; margin: 6px 0 30px; font-size: 15px; }
+  .filter-block { margin: 20px 0; }
+  .filter-block h4 { color: #cbd5e1; font-weight: 500; margin-bottom: 10px; }
+  .filter-btn { padding: 10px 18px; margin: 4px; border-radius: 20px; border: 2px solid #334155; background: #1a1a2e; color: #cbd5e1; cursor: pointer; font-size: 14px; transition: 0.15s; }
+  .filter-btn.active { border-color: #e94560; background: #e94560; color: white; }
+  .premium-note { background: #f59e0b22; border: 1px solid #f59e0b; color: #f59e0b; padding: 8px 14px; border-radius: 8px; font-size: 13px; display: none; margin-top: 10px; }
+  #onlineCount { color: #4ade80; font-size: 14px; margin-top: 6px; }
+  #onlineCount::before { content: "● "; }
+  .start-btn { margin-top: 30px; padding: 18px 60px; font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #e94560, #c13a4f); color: white; border: none; border-radius: 40px; cursor: pointer; box-shadow: 0 8px 25px rgba(233,69,96,0.4); transition: transform 0.15s; }
+  .start-btn:hover { transform: scale(1.04); }
+  .lobby-list { margin-top: 35px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 500px; }
+  .lobby-avatar { font-size: 26px; background: #16213e; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 2px solid #334155; }
+  #call { position: relative; background: #000; }
+  .remote-video-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #16213e); }
+  #remoteVideo { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .remote-placeholder { text-align: center; }
+  .remote-avatar { width: 130px; height: 130px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto 15px; box-shadow: 0 0 0 6px rgba(233,69,96,0.2); }
+  .remote-name { font-size: 20px; font-weight: 600; }
+  .remote-loc { color: #9ca3af; font-size: 14px; margin-top: 4px; }
+  .searching { color: #fbbf24; font-size: 16px; margin-top: 14px; }
+  .top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent); z-index: 20; }
+  .top-bar .badge { background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 16px; font-size: 13px; }
+  .top-bar .montreal-tag { background: #e94560; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin-left: 6px; }
+  .local-video-box { position: absolute; bottom: 110px; right: 16px; width: 140px; height: 190px; background: #111; border-radius: 16px; overflow: hidden; border: 2px solid #e94560; z-index: 25; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  .local-video-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .local-off { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a2e; color: #64748b; font-size: 13px; text-align: center; flex-direction: column; gap: 6px; }
+  .controls-bar { position: absolute; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; z-index: 25; }
+  .ctrl-btn { width: 68px; height: 68px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 28px; background: rgba(20,20,30,0.75); color: white; transition: 0.15s; }
+  .ctrl-btn:hover { transform: scale(1.08); }
+  .ctrl-btn.danger { background: #e94560; }
+  .ctrl-btn.next { background: #2563eb; width: 88px; border-radius: 40px; font-size: 18px; font-weight: 600; gap: 6px; }
+  .ctrl-btn.off { background: #64748b44; }
+  .chat-toggle { position: absolute; bottom: 18px; left: 16px; z-index: 30; }
+  .chat-overlay { position: absolute; bottom: 0; left: 0; width: 100%; max-width: 380px; height: 50%; background: rgba(10,14,24,0.88); backdrop-filter: blur(6px); border-top-right-radius: 18px; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.25s ease; z-index: 28; pointer-events: none; }
+  .chat-overlay.open { transform: translateY(0); pointer-events: auto; }
+  .chat-overlay-header { padding: 10px 14px; font-size: 13px; color: #cbd5e1; display:flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 80%; font-size: 13.5px; padding: 8px 12px; border-radius: 14px; line-height: 1.35; }
+  .msg.received { background: rgba(255,255,255,0.12); align-self: flex-start; }
+  .msg.sent { background: #e94560; align-self: flex-end; }
+  .chat-input-row { display: flex; gap: 8px; padding: 12px; }
+  .chat-input-row input { flex: 1; padding: 12px 14px; border: none; border-radius: 20px; background: rgba(255,255,255,0.16); color: white; font-size: 14px; }
+  .chat-input-row input::placeholder { color: #94a3b8; }
+  .chat-input-row button { background: #e94560; border: none; color: white; padding: 0 18px; border-radius: 20px; cursor: pointer; font-size: 16px; }
+  .unread-dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #4ade80; display: none; }
+  .vip-btn { margin-top: 14px; padding: 10px 22px; border-radius: 20px; border: none; cursor: pointer; background: linear-gradient(135deg, #f59e0b, #d97706); color: #111; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
+  .vip-badge { display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg,#f59e0b,#d97706); color: #111; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 12px; margin-left: 6px; }
+  .calls-left { color: #94a3b8; font-size: 13px; margin-top: 8px; }
+  .calls-left.low { color: #f87171; }
+  .top-vip-pill { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 16px; font-size: 12px; z-index: 21; display: flex; align-items: center; gap: 6px; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-backdrop.open { display: flex; }
+  .vip-modal { background: #161a2e; border-radius: 20px; padding: 28px 24px; max-width: 440px; width: 100%; border: 1px solid #2d3454; position: relative; max-height: 90vh; overflow-y: auto; }
+  .vip-modal h2 { margin: 0 0 4px; font-size: 22px; }
+  .vip-modal .vip-sub { color: #9ca3af; font-size: 14px; margin-bottom: 18px; }
+  .vip-modal .close-x { position: absolute; top: 16px; right: 18px; cursor: pointer; color: #94a3b8; font-size: 18px; }
+  .vip-perks { list-style: none; padding: 0; margin: 0 0 22px; display: flex; flex-direction: column; gap: 8px; }
+  .vip-perks li { font-size: 14px; color: #e2e8f0; display: flex; gap: 8px; align-items: center; }
+  .plan-card { border: 2px solid #2d3454; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.15s; position: relative; }
+  .plan-card:hover { border-color: #f59e0b; }
+  .plan-card.selected { border-color: #f59e0b; background: rgba(245,158,11,0.08); }
+  .plan-card .plan-name { font-weight: 700; font-size: 15px; }
+  .plan-card .plan-sub { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+  .plan-card .plan-price { font-weight: 800; font-size: 18px; color: #f59e0b; }
+  .plan-card .plan-price small { font-size: 11px; color: #94a3b8; font-weight: 400; }
+  .plan-card .tag { position: absolute; top: -10px; right: 14px; background: #e94560; color: white; font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; }
+  .pay-btn { width: 100%; padding: 16px; border: none; border-radius: 14px; cursor: pointer; margin-top: 4px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #111; font-weight: 800; font-size: 16px; }
+  .pay-note { color: #64748b; font-size: 11px; text-align: center; margin-top: 10px; }
+  .paywall-icon { font-size: 46px; text-align: center; margin-bottom: 6px; }
+  .profile-fab { position: absolute; top: 16px; right: 16px; z-index: 5; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; overflow: hidden; }
+  .profile-fab img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-modal { max-width: 380px; text-align: left; }
+  .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .profile-avatar-lg { width: 64px; height: 64px; border-radius: 50%; background: #0e1224; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 28px; overflow: hidden; flex-shrink: 0; }
+  .profile-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-name { font-size: 18px; font-weight: 700; }
+  .profile-sub { color: #94a3b8; font-size: 12.5px; margin-top: 2px; }
+  .profile-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid #232a45; font-size: 13.5px; }
+  .profile-row span:first-child { color: #94a3b8; }
+  .profile-row span:last-child { color: #e2e8f0; font-weight: 600; }
+  .logout-btn { width: 100%; margin-top: 18px; padding: 13px; border-radius: 12px; border: 1.5px solid #ef4444; background: rgba(239,68,68,0.1); color: #fca5a5; font-weight: 700; cursor: pointer; font-size: 14px; }
+  #auth { align-items: center; justify-content: center; padding: 20px; background: radial-gradient(circle at top, #1a1a2e, #0b0f1a 70%); }
+  .auth-card { background: #161a2e; border: 1px solid #2d3454; border-radius: 20px; padding: 32px 26px; max-width: 420px; width: 100%; text-align: center; }
+  .auth-card .logo { font-size: 32px; margin-bottom: 4px; }
+  .auth-sub { color: #9ca3af; font-size: 13.5px; margin-bottom: 4px; line-height: 1.4; }
+  .auth-region { color: #f59e0b; font-size: 12.5px; margin-bottom: 22px; font-weight: 600; }
+  .auth-method-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 13px; margin-bottom: 10px; border-radius: 12px; border: 2px solid #2d3454; background: #1a1f38; color: #e2e8f0; font-size: 14.5px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+  .auth-method-btn:hover { border-color: #e94560; }
+  .auth-method-btn.google { background: #fff; color: #1f1f1f; border-color: #fff; }
+  .auth-divider { color: #475067; font-size: 12px; margin: 16px 0; }
+  .age-gate-note { margin-top: 18px; font-size: 11.5px; color: #64748b; border-top: 1px solid #2d3454; padding-top: 14px; }
+  .auth-input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #2d3454; background: #0e1224; color: white; font-size: 14px; margin-bottom: 12px; }
+  .auth-input::placeholder { color: #64748b; }
+  .auth-label { text-align: left; font-size: 12.5px; color: #94a3b8; margin: 0 0 6px; display: block; font-weight: 600; }
+  .gender-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .gender-opt { flex: 1; padding: 12px; border-radius: 10px; border: 2px solid #2d3454; background: #0e1224; color: #cbd5e1; cursor: pointer; font-size: 13.5px; font-weight: 600; text-align: center; }
+  .gender-opt.selected { border-color: #e94560; background: rgba(233,69,96,0.12); color: white; }
+  .photo-upload-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; justify-content: flex-start; }
+  .photo-preview { width: 56px; height: 56px; border-radius: 50%; background: #0e1224; border: 2px dashed #334155; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #475067; overflow: hidden; flex-shrink: 0; }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .upload-btn-label { padding: 9px 16px; border-radius: 10px; background: #1a1f38; border: 1.5px solid #2d3454; color: #cbd5e1; font-size: 12.5px; cursor: pointer; font-weight: 600; }
+  .optional-tag { color: #64748b; font-weight: 400; font-size: 11px; }
+  .auth-error { background: rgba(239,68,68,0.12); border: 1px solid #ef4444; color: #fca5a5; font-size: 13px; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; display: none; text-align: left; }
+  .auth-back { color: #94a3b8; font-size: 13px; cursor: pointer; margin-bottom: 14px; display: inline-block; }
+  .auth-submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; margin-top: 4px; background: linear-gradient(135deg, #e94560, #c13a4f); color: white; font-weight: 700; font-size: 15px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>MTL Chat</h1>
-  <p>Rencontres video en direct a Montreal</p>
-</header>
-<div class="hero">
-  <h2>Rencontres Video Instantanees</h2>
-  <p>Connecte-toi avec des gens de Montreal en temps reel. Mode VIP pour une experience sans limites.</p>
-</div>
-<div id="vip-banner">
-  <h3>Acces VIP Active !</h3>
-  <p id="vip-msg">Paiement confirme ! Profite de ton acces VIP.</p>
-</div>
-<div class="cancel-msg" id="cancel-msg">
-  <p>Paiement annule. Tu peux reessayer quand tu veux.</p>
-</div>
-<div class="vip-section">
-  <h3>Passe VIP - Acces Premium</h3>
-  <div class="plans">
-    <div class="plan-card">
-      <h4>Essai</h4>
-      <div class="price">11,99$</div>
-      <div class="duration">1 jour</div>
-      <ul>
-        <li>Acces illimite 24h</li>
-        <li>Video HD</li>
-        <li>Sans publicite</li>
-      </ul>
-      <button class="btn-pay" onclick="pay('1d')">Payer 11,99$ CAD</button>
+<!-- ===================== AUTHENTIFICATION / INSCRIPTION ===================== -->
+<div class="screen" id="auth">
+  <div class="auth-card">
+    <div id="authStep1">
+      <span class="auth-back" onclick="cancelAuthToLobby()">← Retour à l'accueil</span>
+      <div class="logo">MTL Chat 🌆</div>
+      <div class="auth-sub">Rencontres vidéo entre francophones</div>
+      <div class="auth-region">📍 Basé à Montréal, ouvert à tous les francophones du monde</div>
+      <div id="googleBtnContainer" style="display:flex; justify-content:center; margin-bottom:12px;"></div>
+      <div class="age-gate-note">
+        🔒 En continuant avec Google, tu confirmes être âgé de <strong>18 ans ou plus</strong>. MTL Chat est strictement réservé aux adultes.
+      </div>
     </div>
-    <div class="plan-card">
-      <h4>Populaire</h4>
-      <div class="price">34,99$</div>
-      <div class="duration">7 jours</div>
-      <ul>
-        <li>Acces illimite 7 jours</li>
-        <li>Video HD</li>
-        <li>Sans publicite</li>
-      </ul>
-      <button class="btn-pay" onclick="pay('7d')">Payer 34,99$ CAD</button>
-    </div>
-    <div class="plan-card">
-      <h4>Meilleure valeur</h4>
-      <div class="price">59,99$</div>
-      <div class="duration">1 mois</div>
-      <ul>
-        <li>Acces illimite 30 jours</li>
-        <li>Video HD</li>
-        <li>Sans publicite</li>
-      </ul>
-      <button class="btn-pay" onclick="pay('1m')">Payer 59,99$ CAD</button>
+    <div id="authStep3" style="display:none;">
+      <span class="auth-back" onclick="backToAuthStep1()">← Retour</span>
+      <div class="logo" style="font-size:24px;">Complète ton profil</div>
+      <div class="auth-sub" style="margin-bottom:18px;">Le genre et la date de naissance sont obligatoires.</div>
+      <div class="auth-error" id="authStep3Error"></div>
+      <label class="auth-label">Photo de profil <span class="optional-tag">(facultatif)</span></label>
+      <div class="photo-upload-row">
+        <div class="photo-preview" id="photoPreview">🙂</div>
+        <label class="upload-btn-label" for="photoInput">Choisir une photo</label>
+        <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
+      </div>
+      <label class="auth-label">Pseudo <span class="optional-tag">(facultatif)</span></label>
+      <input type="text" class="auth-input" id="authPseudo" placeholder="Ex. Sam_514">
+      <label class="auth-label">Genre <span style="color:#e94560;">*</span></label>
+      <div class="gender-row">
+        <div class="gender-opt" data-gender="F" onclick="selectGender('F', this)">👩 Femme</div>
+        <div class="gender-opt" data-gender="M" onclick="selectGender('M', this)">👨 Homme</div>
+      </div>
+      <label class="auth-label">Date de naissance <span style="color:#e94560;">*</span> — tu dois avoir 18 ans ou plus</label>
+      <input type="date" class="auth-input" id="authBirthdate">
+      <button class="auth-submit-btn" onclick="finishSignup()">Créer mon compte</button>
     </div>
   </div>
 </div>
-<footer><p>2026 MTL Chat - Montreal, Quebec</p></footer>
+<!-- ===================== LOBBY ===================== -->
+<div class="screen active" id="lobby">
+  <div id="lobby-bg">
+    <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#040611"/><stop offset="35%" stop-color="#0a1024"/><stop offset="65%" stop-color="#16203f"/><stop offset="100%" stop-color="#2a3358"/></linearGradient>
+        <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3d4a7a" stop-opacity="0"/><stop offset="100%" stop-color="#e8915c" stop-opacity="0.18"/></linearGradient>
+        <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0c1730"/><stop offset="40%" stop-color="#060c1c"/><stop offset="100%" stop-color="#02050d"/></linearGradient>
+        <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff6da" stop-opacity="0.95"/><stop offset="35%" stop-color="#fdeec0" stop-opacity="0.4"/><stop offset="100%" stop-color="#fdeec0" stop-opacity="0"/></radialGradient>
+        <radialGradient id="vignette" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#000000" stop-opacity="0.55"/></radialGradient>
+        <filter id="softBlur"><feGaussianBlur stdDeviation="4"/></filter>
+        <filter id="bokehBlur"><feGaussianBlur stdDeviation="8"/></filter>
+        <filter id="hairBlur"><feGaussianBlur stdDeviation="1.1"/></filter>
+      </defs>
+      <rect width="1200" height="800" fill="url(#skyGrad)"/>
+      <rect width="1200" height="800" fill="url(#haze)"/>
+      <circle cx="1010" cy="100" r="110" fill="url(#moonGlow)"/>
+      <circle cx="1010" cy="100" r="22" fill="#fffaf0"/>
+      <g fill="#ffffff" opacity="0.45"><circle cx="80" cy="60" r="1.3"/><circle cx="180" cy="110" r="1"/><circle cx="300" cy="50" r="1.2"/><circle cx="430" cy="70" r="1.1"/><circle cx="620" cy="100" r="1"/><circle cx="760" cy="60" r="1.2"/></g>
+      <g><rect x="120" y="420" width="50" height="200" fill="#10162c"/><rect x="178" y="370" width="42" height="250" fill="#0c1226"/><rect x="226" y="410" width="48" height="210" fill="#121a32"/><rect x="280" y="330" width="56" height="290" fill="#0a0f20"/><rect x="342" y="395" width="38" height="225" fill="#141c36"/><rect x="430" y="430" width="50" height="190" fill="#0e1428"/><rect x="488" y="380" width="40" height="240" fill="#10162c"/><rect x="535" y="445" width="55" height="175" fill="#121a32"/></g>
+      <rect x="0" y="610" width="1200" height="190" fill="url(#waterGrad)"/>
+      <g><path d="M 520 650 Q 850 565 1190 605" stroke="#1d2542" stroke-width="13" fill="none"/><path d="M 800 555 L 765 600 L 802 600 L 802 612 L 858 612 L 858 600 L 893 600 L 858 555 Z" fill="#0c1024"/><g stroke="#475180" stroke-width="1.6" opacity="0.75"><line x1="580" y1="638" x2="813" y2="562"/><line x1="680" y1="610" x2="813" y2="562"/><line x1="1030" y1="592" x2="845" y2="562"/><line x1="1130" y1="606" x2="845" y2="562"/></g><g filter="url(#bokehBlur)" opacity="0.85"><circle cx="813" cy="558" r="13" fill="#ffb347"/><circle cx="845" cy="558" r="13" fill="#ffb347"/></g></g>
+      <g filter="url(#softBlur)"><path d="M -20 620 L 130 455 L 270 620 Z" fill="#070a16"/></g>
+      <rect width="1200" height="800" fill="url(#vignette)"/>
+    </svg>
+  </div>
+  <div class="lobby-overlay"></div>
+  <div class="profile-fab" id="profileFab" onclick="openProfileModal()">👤</div>
+  <div class="lobby-content">
+    <div class="logo">MTL Chat 🌆</div>
+    <div class="tagline">Le rendez-vous vidéo des francophones de Montréal — et de partout dans le monde 🌍</div>
+    <div class="auth-region" id="myProfileBadge" style="margin-bottom:10px;"></div>
+    <div class="filter-block">
+      <h4>🎯 Qui veux-tu rencontrer ?</h4>
+      <button class="filter-btn active" data-g="random" onclick="setGenderFilter('random', this)">Aléatoire</button>
+      <button class="filter-btn" data-g="female" onclick="setGenderFilter('female', this)">Filles</button>
+      <button class="filter-btn" data-g="male" onclick="setGenderFilter('male', this)">Garçons</button>
+      <div class="premium-note" id="premiumNotice">🔒 Filtre genre spécifique = <strong>réservé aux membres VIP</strong></div>
+    </div>
+    <div id="onlineCount"><span id="onlineCountNumber">—</span> Montréalais en ligne <span class="vip-badge" id="lobbyVipBadge" style="display:none;">⭐ VIP</span></div>
+    <div class="calls-left" id="callsLeftText"></div>
+    <div class="lobby-list" id="lobbyList"></div>
+    <button class="start-btn" onclick="startCall()">▶ Démarrer</button>
+    <button class="vip-btn" onclick="openVipModal()">⭐ Devenir VIP</button>
+  </div>
+</div>
+<!-- ===================== APPEL VIDÉO ===================== -->
+<div class="screen" id="call">
+  <div class="top-bar">
+    <div class="badge">MTL Chat <span class="montreal-tag" id="genderFilterBadge">Aléatoire</span></div>
+    <div class="badge" id="timerBadge">00:00</div>
+  </div>
+  <div class="top-vip-pill" id="topVipPill" style="display:none;">⭐ VIP actif</div>
+  <div class="remote-video-area" id="remoteArea">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <div class="remote-placeholder" id="searchingBlock">
+      <div class="remote-avatar" id="searchingAvatar">🔎</div>
+      <div class="remote-name" id="searchingName">Recherche d'un partenaire...</div>
+      <div class="searching" id="searchingText">Connexion à Montréal en cours</div>
+    </div>
+  </div>
+  <div class="local-video-box" id="localBox">
+    <div class="local-off" id="localOff">📷<br>Caméra fermée</div>
+    <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
+  </div>
+  <div class="controls-bar">
+    <button class="ctrl-btn off" id="camBtn" onclick="toggleCamera()" title="Caméra obligatoire">📷🔒</button>
+    <button class="ctrl-btn next" onclick="nextPartner()">🔄 Suivant</button>
+    <button class="ctrl-btn danger" onclick="endChat()">📞</button>
+  </div>
+  <div class="chat-toggle">
+    <button class="ctrl-btn" id="chatBtn" onclick="toggleChat()" style="position:relative;">💬<span class="unread-dot" id="unreadDot"></span></button>
+  </div>
+  <div class="chat-overlay" id="chatOverlay">
+    <div class="chat-overlay-header">
+      <span id="chatHeaderName">Chat</span>
+      <span style="cursor:pointer;" onclick="toggleChat()">✕</span>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="messageInput" placeholder="Écris un message..." onkeypress="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</div>
+<!-- ===================== MODAL VIP (ACHAT) ===================== -->
+<div class="modal-backdrop" id="vipModalBackdrop">
+  <div class="vip-modal">
+    <span class="close-x" onclick="closeVipModal()">✕</span>
+    <h2>⭐ Passe VIP</h2>
+    <div class="vip-sub">Débloque l'expérience complète sur MTL Chat</div>
+    <ul class="vip-perks">
+      <li>✅ Filtre de genre (choisis Filles ou Garçons)</li>
+      <li>✅ Appels illimités (vs 300 appels/mois en gratuit)</li>
+      <li>✅ File d'attente prioritaire</li>
+      <li>✅ Badge VIP visible pendant les appels</li>
+    </ul>
+    <div class="plan-card" data-plan="1d" onclick="selectPlan('1d', this)">
+      <div><div class="plan-name">1 jour</div><div class="plan-sub">Accès complet pendant 24h</div></div>
+      <div class="plan-price">11,99$</div>
+    </div>
+    <div class="plan-card selected" data-plan="7d" onclick="selectPlan('7d', this)">
+      <span class="tag">POPULAIRE</span>
+      <div><div class="plan-name">7 jours</div><div class="plan-sub">≈ 5,00$/jour</div></div>
+      <div class="plan-price">34,99$</div>
+    </div>
+    <div class="plan-card" data-plan="1m" onclick="selectPlan('1m', this)">
+      <span class="tag" style="background:#16a34a;">MEILLEUR PRIX</span>
+      <div><div class="plan-name">1 mois</div><div class="plan-sub">≈ 2,00$/jour</div></div>
+      <div class="plan-price">59,99$</div>
+    </div>
+    <button class="pay-btn" onclick="confirmPurchase()">Payer <span id="payAmount">34,99$</span></button>
+    <div class="pay-note">Paiement sécurisé via Stripe.</div>
+  </div>
+</div>
+<!-- ===================== MODAL PAYWALL ===================== -->
+<div class="modal-backdrop" id="limitModalBackdrop">
+  <div class="vip-modal" style="max-width:380px; text-align:center;">
+    <span class="close-x" onclick="closeLimitModal()">✕</span>
+    <div class="paywall-icon">⏳</div>
+    <h2>Limite atteinte</h2>
+    <div class="vip-sub">Tu as utilisé tes 300 appels gratuits. Passe VIP pour des appels illimités, sans attendre.</div>
+    <button class="pay-btn" onclick="closeLimitModal(); openVipModal();">⭐ Voir les offres VIP</button>
+  </div>
+</div>
+<!-- ===================== MODAL PROFIL ===================== -->
+<div class="modal-backdrop" id="profileModalBackdrop">
+  <div class="vip-modal profile-modal">
+    <span class="close-x" onclick="closeProfileModal()">✕</span>
+    <div class="profile-header">
+      <div class="profile-avatar-lg" id="profileAvatarLg">🙂</div>
+      <div><div class="profile-name" id="profileName">Membre</div><div class="profile-sub" id="profileVipStatus">Compte gratuit</div></div>
+    </div>
+    <div class="profile-row"><span>Genre</span><span id="profileGender">—</span></div>
+    <div class="profile-row"><span>Âge</span><span id="profileAge">—</span></div>
+    <div class="profile-row"><span>Connecté via</span><span id="profileMethod">—</span></div>
+    <div class="profile-row"><span>Identifiant</span><span id="profileIdentifier">—</span></div>
+    <div class="profile-row"><span>Statut VIP</span><span id="profileVipExpiry">—</span></div>
+    <div class="profile-row"><span>Appels effectués</span><span id="profileCallsUsed">—</span></div>
+    <button class="vip-btn" style="width:100%; margin-top:16px;" onclick="closeProfileModal(); openVipModal();">⭐ Gérer mon abonnement VIP</button>
+    <button class="logout-btn" onclick="logout()">🚪 Se déconnecter</button>
+  </div>
+</div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-  var BACKEND = 'https://mtl-chat-backend.onrender.com';
-  window.addEventListener('DOMContentLoaded', async function() {
-    var p = new URLSearchParams(window.location.search);
-    if (p.get('vip') === 'success' && p.get('session_id')) {
-      try {
-        var r = await fetch(BACKEND + '/verify-session?session_id=' + p.get('session_id'));
-        var d = await r.json();
-        if (d.paid) {
-          document.getElementById('vip-banner').style.display = 'block';
-          window.history.replaceState({}, '', '/');
-        }
-      } catch(e) { console.error(e); }
-    } else if (p.get('vip') === 'cancel') {
-      document.getElementById('cancel-msg').style.display = 'block';
-      window.history.replaceState({}, '', '/');
-    }
-  });
-  async function pay(plan) {
-    var btns = document.querySelectorAll('.btn-pay');
-    btns.forEach(function(b) { b.disabled = true; b.textContent = 'Chargement...'; });
-    try {
-      var r = await fetch(BACKEND + '/create-checkout-session', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ plan: plan })
-      });
-      var d = await r.json();
-      if (d.url) {
-        window.location.href = d.url;
-      } else {
-        alert('Erreur: ' + (d.error || 'Impossible de creer la session'));
-        btns.forEach(function(b) { b.disabled = false; });
-      }
-    } catch(e) {
-      alert('Erreur de connexion. Si premier acces, attends 30s et reessaie (serveur en demarrage).');
-      btns.forEach(function(b) { b.disabled = false; });
-    }
+const users = [
+  { name: "Sophie L.", location: "Plateau-Mont-Royal", gender: "F", avatar: "🇨🇦" },
+  { name: "Alexandre T.", location: "Rosemont", gender: "M", avatar: "🍁" },
+  { name: "Marie-Claire B.", location: "Hochelaga", gender: "F", avatar: "🧣" },
+  { name: "Jean-Philippe M.", location: "Mile-End", gender: "M", avatar: "☕" },
+  { name: "Emma Dubois", location: "Verdun", gender: "F", avatar: "🎨" },
+  { name: "Thomas Roy", location: "Verdun", gender: "M", avatar: "🏒" }
+];
+
+let currentGenderFilter = 'random';
+let localStream = null;
+let cameraOn = false;
+let chatOpen = false;
+let timerInterval = null;
+let secondsElapsed = 0;
+let currentPartner = null;
+let selectedPlan = '7d';
+
+// ---------- AUTHENTIFICATION GOOGLE ----------
+const GOOGLE_CLIENT_ID = "387638692815-9va74n4tj0ic7rr51ej7nh7u96fcujk2.apps.googleusercontent.com";
+
+function initGoogleSignIn() {
+  if (!window.google || !google.accounts || !google.accounts.id) {
+    // Le script Google n'est pas encore chargé : on réessaie peu après
+    setTimeout(initGoogleSignIn, 400);
+    return;
   }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential
+  });
+  google.accounts.id.renderButton(document.getElementById('googleBtnContainer'), {
+    theme: 'filled_blue', size: 'large', shape: 'pill', text: 'continue_with', width: 320
+  });
+}
+
+function decodeGoogleJwt(token) {
+  const payload = token.split('.')[1];
+  const json = decodeURIComponent(
+    atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+      .split('')
+      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+      .join('')
+  );
+  return JSON.parse(json);
+}
+
+function handleGoogleCredential(response) {
+  const profile = decodeGoogleJwt(response.credential);
+  pendingAuthMethod = 'google';
+  pendingIdentifier = profile.email;
+  uploadedPhotoDataUrl = profile.picture || null;
+  goToAuthStep3();
+  setTimeout(() => {
+    const pseudoField = document.getElementById('authPseudo');
+    if (pseudoField && !pseudoField.value) pseudoField.value = profile.given_name || '';
+    if (uploadedPhotoDataUrl) {
+      const preview = document.getElementById('photoPreview');
+      if (preview) preview.innerHTML = '<img src="' + uploadedPhotoDataUrl + '">';
+    }
+  }, 0);
+}
+
+let pendingAuthMethod = null;
+let pendingIdentifier = null;
+let selectedSignupGender = null;
+let uploadedPhotoDataUrl = null;
+
+function getAccount() {
+  try { return JSON.parse(localStorage.getItem('mtlchat_account') || 'null'); }
+  catch (e) { return null; }
+}
+function saveAccount(account) {
+  localStorage.setItem('mtlchat_account', JSON.stringify(account));
+}
+
+function goToAuthStep3() {
+  document.getElementById('authStep1').style.display = 'none';
+  document.getElementById('authStep3').style.display = 'block';
+}
+function backToAuthStep1() {
+  document.getElementById('authStep1').style.display = 'block';
+  document.getElementById('authStep3').style.display = 'none';
+}
+
+function selectGender(g, el) {
+  selectedSignupGender = g;
+  document.querySelectorAll('.gender-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    uploadedPhotoDataUrl = e.target.result;
+    document.getElementById('photoPreview').innerHTML = '<img src="' + uploadedPhotoDataUrl + '">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function calculateAge(birthdateStr) {
+  const today = new Date();
+  const bd = new Date(birthdateStr);
+  let age = today.getFullYear() - bd.getFullYear();
+  const monthDiff = today.getMonth() - bd.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+function finishSignup() {
+  const errEl = document.getElementById('authStep3Error');
+  const birthdateVal = document.getElementById('authBirthdate').value;
+  if (!selectedSignupGender) {
+    errEl.textContent = "Sélectionne ton genre pour continuer.";
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!birthdateVal) {
+    errEl.textContent = "Entre ta date de naissance pour continuer.";
+    errEl.style.display = 'block';
+    return;
+  }
+  const age = calculateAge(birthdateVal);
+  if (isNaN(age) || age < 18) {
+    errEl.textContent = "🔒 MTL Chat est réservé aux personnes de 18 ans et plus. La création de compte est bloquée.";
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const pseudo = document.getElementById('authPseudo').value.trim();
+  saveAccount({
+    authMethod: pendingAuthMethod,
+    identifier: pendingIdentifier,
+    gender: selectedSignupGender,
+    birthdate: birthdateVal,
+    pseudo: pseudo || null,
+    photo: uploadedPhotoDataUrl || null,
+    createdAt: Date.now()
+  });
+  enterLobby();
+}
+
+function enterLobby() {
+  const account = getAccount();
+  showScreen('lobby');
+  populateLobbyList();
+  refreshVipUI();
+  const badge = document.getElementById('myProfileBadge');
+  if (account) {
+    const genderLabel = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
+    const name = account.pseudo ? account.pseudo : 'Membre';
+    badge.textContent = 'Connecté(e) en tant que ' + name + ' • ' + genderLabel;
+  }
+  updateProfileFabIcon();
+  if (pendingStartAfterAuth) {
+    pendingStartAfterAuth = false;
+    startCall();
+  }
+}
+
+const FREE_CALL_LIMIT = 300;
+const PLANS = {
+  '1d': { label: '1 jour',  price: 11.99, ms: 1 * 24 * 60 * 60 * 1000 },
+  '7d': { label: '7 jours', price: 34.99, ms: 7 * 24 * 60 * 60 * 1000 },
+  '1m': { label: '1 mois',  price: 59.99, ms: 30 * 24 * 60 * 60 * 1000 }
+};
+
+const BACKEND_URL = "https://mtl-chat-backend.onrender.com";
+
+function getVipExpiry() { return parseInt(localStorage.getItem('mtlchat_vip_expiry') || '0', 10); }
+function isVip() { return getVipExpiry() > Date.now(); }
+function getCallsUsed() { return parseInt(localStorage.getItem('mtlchat_calls_used') || '0', 10); }
+function incrementCallsUsed() { localStorage.setItem('mtlchat_calls_used', String(getCallsUsed() + 1)); }
+function activateVip(planKey) {
+  const plan = PLANS[planKey];
+  const base = Math.max(getVipExpiry(), Date.now());
+  localStorage.setItem('mtlchat_vip_expiry', String(base + plan.ms));
+}
+
+function refreshVipUI() {
+  const vip = isVip();
+  document.getElementById('lobbyVipBadge').style.display = vip ? 'inline-flex' : 'none';
+  document.getElementById('topVipPill').style.display = vip ? 'flex' : 'none';
+  const callsUsed = getCallsUsed();
+  const callsLeftEl = document.getElementById('callsLeftText');
+  if (vip) {
+    callsLeftEl.textContent = '∞ Appels illimités';
+    callsLeftEl.classList.remove('low');
+  } else {
+    const left = Math.max(0, FREE_CALL_LIMIT - callsUsed);
+    callsLeftEl.textContent = left + ' appels gratuits restants';
+    callsLeftEl.classList.toggle('low', left <= 20);
+  }
+}
+
+function openVipModal() { document.getElementById('vipModalBackdrop').classList.add('open'); }
+function closeVipModal() { document.getElementById('vipModalBackdrop').classList.remove('open'); }
+function selectPlan(key, el) {
+  selectedPlan = key;
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('payAmount').textContent = PLANS[key].price.toFixed(2) + '$';
+}
+async function confirmPurchase() {
+  const plan = PLANS[selectedPlan];
+  const payBtn = document.querySelector('.pay-btn');
+  const originalText = payBtn.textContent;
+  payBtn.textContent = 'Redirection vers le paiement sécurisé...';
+  payBtn.disabled = true;
+  try {
+    const response = await fetch(BACKEND_URL + '/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: selectedPlan })
+    });
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error(data.error || 'Réponse invalide du serveur');
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Impossible de démarrer le paiement. Vérifie que le backend est bien déployé et que BACKEND_URL est correctement configuré dans le code.");
+    payBtn.textContent = originalText;
+    payBtn.disabled = false;
+  }
+}
+
+async function checkPaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session_id');
+  const vipStatus = params.get('vip');
+  if (vipStatus === 'cancel') {
+    history.replaceState(null, '', window.location.pathname);
+    return;
+  }
+  if (!sessionId) return;
+  try {
+    const response = await fetch(BACKEND_URL + '/verify-session?session_id=' + encodeURIComponent(sessionId));
+    const data = await response.json();
+    if (data.paid && data.plan) {
+      activateVip(data.plan);
+      refreshVipUI();
+      alert('✅ Paiement confirmé ! VIP activé (' + PLANS[data.plan].label + ').');
+    } else {
+      alert("Le paiement n'a pas pu être confirmé. Si l'argent a été débité, contacte le support.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Impossible de vérifier le paiement auprès du serveur.");
+  }
+  history.replaceState(null, '', window.location.pathname);
+}
+
+function openLimitModal() { document.getElementById('limitModalBackdrop').classList.add('open'); }
+function closeLimitModal() { document.getElementById('limitModalBackdrop').classList.remove('open'); }
+
+function populateLobbyList() {
+  const list = document.getElementById('lobbyList');
+  list.innerHTML = '';
+  users.forEach(u => {
+    const div = document.createElement('div');
+    div.className = 'lobby-avatar';
+    div.title = u.name + ' - ' + u.location;
+    div.textContent = u.avatar;
+    list.appendChild(div);
+  });
+}
+
+function setGenderFilter(gender, btn) {
+  if (gender !== 'random' && !isVip()) {
+    openVipModal();
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn[data-g="random"]').classList.add('active');
+    currentGenderFilter = 'random';
+    return;
+  }
+  currentGenderFilter = gender;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('premiumNotice').style.display = (gender !== 'random' && !isVip()) ? 'block' : 'none';
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+let pendingStartAfterAuth = false;
+function startCall() {
+  const account = getAccount();
+  if (!account) {
+    pendingStartAfterAuth = true;
+    showScreen('auth');
+    return;
+  }
+  if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
+    openLimitModal();
+    return;
+  }
+  showScreen('call');
+  document.getElementById('genderFilterBadge').textContent =
+    currentGenderFilter === 'random' ? 'Aléatoire' : currentGenderFilter === 'female' ? 'Filles' : 'Garçons';
+  resetChat();
+  ensureCameraOn();
+  findPartner();
+}
+
+function cancelAuthToLobby() {
+  pendingStartAfterAuth = false;
+  showScreen('lobby');
+}
+
+function formatAuthMethod(m) {
+  if (m === 'google') return 'Compte Google';
+  return '—';
+}
+
+function openProfileModal() {
+  const account = getAccount();
+  if (!account) { showScreen('auth'); return; }
+  document.getElementById('profileName').textContent = account.pseudo || 'Membre';
+  document.getElementById('profileGender').textContent = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
+  document.getElementById('profileAge').textContent = calculateAge(account.birthdate) + ' ans';
+  document.getElementById('profileMethod').textContent = formatAuthMethod(account.authMethod);
+  document.getElementById('profileIdentifier').textContent = account.identifier || '—';
+  document.getElementById('profileCallsUsed').textContent = getCallsUsed() + ' / ' + FREE_CALL_LIMIT;
+  const avatarEl = document.getElementById('profileAvatarLg');
+  avatarEl.innerHTML = account.photo ? '<img src="' + account.photo + '">' : (account.gender === 'F' ? '👩' : '👨');
+  const vipStatusEl = document.getElementById('profileVipStatus');
+  const vipExpiryEl = document.getElementById('profileVipExpiry');
+  if (isVip()) {
+    const expiry = new Date(getVipExpiry());
+    vipStatusEl.textContent = '⭐ Membre VIP actif';
+    vipExpiryEl.textContent = "Actif jusqu'au " + expiry.toLocaleDateString('fr-CA');
+  } else {
+    vipStatusEl.textContent = 'Compte gratuit';
+    vipExpiryEl.textContent = 'Aucun abonnement actif';
+  }
+  document.getElementById('profileModalBackdrop').classList.add('open');
+}
+
+function closeProfileModal() { document.getElementById('profileModalBackdrop').classList.remove('open'); }
+
+function logout() {
+  if (!confirm("Te déconnecter de MTL Chat ? Tu devras te reconnecter pour démarrer un nouvel appel.")) return;
+  localStorage.removeItem('mtlchat_account');
+  closeProfileModal();
+  document.getElementById('myProfileBadge').textContent = '';
+  document.getElementById('profileFab').innerHTML = '👤';
+  showScreen('lobby');
+}
+
+function updateProfileFabIcon() {
+  const account = getAccount();
+  const fab = document.getElementById('profileFab');
+  if (account && account.photo) {
+    fab.innerHTML = '<img src="' + account.photo + '">';
+  } else {
+    fab.innerHTML = '👤';
+  }
+}
+
+async function ensureCameraOn() {
+  if (cameraOn) return;
+  const video = document.getElementById('localVideo');
+  const off = document.getElementById('localOff');
+  const btn = document.getElementById('camBtn');
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = localStream;
+    video.style.display = 'block';
+    off.style.display = 'none';
+    cameraOn = true;
+    btn.classList.remove('off');
+  } catch (err) {
+    off.innerHTML = '⚠️<br>Caméra requise<br><small style="font-size:10px;">Autorise l\'accès</small>';
+    off.style.display = 'flex';
+    alert("La caméra est obligatoire pour utiliser MTL Chat. Autorise l'accès à ta caméra puis clique sur Suivant.");
+  }
+}
+const socket = io(BACKEND_URL);
+let peerConnection = null;
+let isInitiator = false;
+let searching = false;
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+function myProfile() {
+  const account = getAccount();
+  const filterCode = currentGenderFilter === 'female' ? 'F' : currentGenderFilter === 'male' ? 'M' : 'random';
+  return {
+    gender: account ? account.gender : 'M',
+    filter: filterCode,
+    name: account && account.pseudo ? account.pseudo : 'Anonyme'
+  };
+}
+
+function createPeerConnection() {
+  const pc = new RTCPeerConnection(ICE_SERVERS);
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('signal', { signal: { type: 'ice-candidate', candidate: event.candidate } });
+    }
+  };
+  pc.ontrack = (event) => {
+    const remoteVideo = document.getElementById('remoteVideo');
+    remoteVideo.srcObject = event.streams[0];
+    remoteVideo.style.display = 'block';
+    document.getElementById('searchingBlock').style.display = 'none';
+  };
+  pc.onconnectionstatechange = () => {
+    if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+      document.getElementById('remoteVideo').style.display = 'none';
+    }
+  };
+  return pc;
+}
+
+async function startWebRTC() {
+  peerConnection = createPeerConnection();
+  if (isInitiator) {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('signal', { signal: { type: 'offer', sdp: offer } });
+  }
+}
+
+socket.on('matched', async (data) => {
+  searching = false;
+  isInitiator = data.initiator;
+  currentPartner = data.partnerProfile;
+  document.getElementById('searchingBlock').style.display = 'none';
+  document.getElementById('chatHeaderName').textContent = currentPartner.name || 'Partenaire';
+  addMessage('👋 Connecté avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
+  startTimer();
+  if (!isVip()) incrementCallsUsed();
+  refreshVipUI();
+  await startWebRTC();
+});
+
+socket.on('signal', async (signal) => {
+  if (!peerConnection) peerConnection = createPeerConnection();
+  if (signal.type === 'offer') {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('signal', { signal: { type: 'answer', sdp: answer } });
+  } else if (signal.type === 'answer') {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+  } else if (signal.type === 'ice-candidate') {
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    } catch (e) { console.error('Erreur ICE candidate', e); }
+  }
+});
+
+socket.on('online-count', (count) => {
+  document.getElementById('onlineCountNumber').textContent = count.toLocaleString('fr-CA');
+});
+
+socket.on('chat-message', (text) => { addMessage(text, false); });
+
+socket.on('partner-left', () => {
+  closePeerConnection();
+  if (document.getElementById('call').classList.contains('active')) {
+    addMessage("Le partenaire a quitté l'appel.", false);
+    findPartner();
+  }
+});
+
+function closePeerConnection() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  const remoteVideo = document.getElementById('remoteVideo');
+  remoteVideo.srcObject = null;
+  remoteVideo.style.display = 'none';
+}
+
+function findPartner() {
+  stopTimer();
+  closePeerConnection();
+  socket.emit('leave-room');
+  ensureCameraOn();
+  searching = true;
+  document.getElementById('searchingBlock').style.display = 'flex';
+  document.getElementById('searchingAvatar').textContent = '🔎';
+  document.getElementById('searchingName').textContent = "Recherche d'un partenaire...";
+  document.getElementById('searchingText').textContent = 'Connexion à Montréal en cours';
+  resetChat();
+  socket.emit('find-partner', myProfile());
+}
+
+function nextPartner() {
+  if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
+    stopTimer();
+    showScreen('lobby');
+    refreshVipUI();
+    openLimitModal();
+    return;
+  }
+  findPartner();
+}
+
+function endChat() {
+  if (confirm("Quitter l'appel ?")) {
+    stopTimer();
+    closePeerConnection();
+    socket.emit('leave-room');
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      localStream = null;
+      cameraOn = false;
+    }
+    showScreen('lobby');
+    refreshVipUI();
+  }
+}
+
+function startTimer() {
+  secondsElapsed = 0;
+  timerInterval = setInterval(() => {
+    secondsElapsed++;
+    const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+    const s = String(secondsElapsed % 60).padStart(2, '0');
+    document.getElementById('timerBadge').textContent = m + ':' + s;
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  document.getElementById('timerBadge').textContent = '00:00';
+}
+
+async function toggleCamera() { await ensureCameraOn(); }
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatOverlay').classList.toggle('open', chatOpen);
+  if (chatOpen) document.getElementById('unreadDot').style.display = 'none';
+}
+
+function resetChat() {
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('chatOverlay').classList.remove('open');
+  chatOpen = false;
+}
+
+function addMessage(text, isSent) {
+  const wrap = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (isSent ? 'sent' : 'received');
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  if (!isSent && !chatOpen) document.getElementById('unreadDot').style.display = 'block';
+}
+
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text || !currentPartner) return;
+  addMessage(text, true);
+  input.value = '';
+  socket.emit('chat-message', text);
+}
+
+window.onload = () => {
+  populateLobbyList();
+  refreshVipUI();
+  updateProfileFabIcon();
+  checkPaymentReturn();
+  initGoogleSignIn();
+  const account = getAccount();
+  if (account) {
+    const genderLabel = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
+    const name = account.pseudo ? account.pseudo : 'Membre';
+    document.getElementById('myProfileBadge').textContent = 'Connecté(e) en tant que ' + name + ' • ' + genderLabel;
+  }
+};
 </script>
 </body>
 </html>
