@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>MTL Chat - Rencontres vidéo Montréal</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -126,6 +126,34 @@
   .auth-error { background: rgba(239,68,68,0.12); border: 1px solid #ef4444; color: #fca5a5; font-size: 13px; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; display: none; text-align: left; }
   .auth-back { color: #94a3b8; font-size: 13px; cursor: pointer; margin-bottom: 14px; display: inline-block; }
   .auth-submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; margin-top: 4px; background: linear-gradient(135deg, #e94560, #c13a4f); color: white; font-weight: 700; font-size: 15px; }
+
+/* ---- Optimisations mobile / responsive ---- */
+#call { height: 100vh; height: 100dvh; }
+#remoteVideo { background: #000; }
+@media (max-width: 768px) {
+  .local-video-box {
+    width: 96px;
+    height: 132px;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    border-radius: 12px;
+    border-width: 2px;
+  }
+  .controls-bar {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+  }
+  .ctrl-btn { width: 58px; height: 58px; font-size: 24px; }
+  .ctrl-btn.next { width: 76px; font-size: 16px; }
+  .top-bar { padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; }
+  .chat-overlay { max-width: 100%; height: 55%; }
+  .start-btn { padding: 16px 44px; font-size: 18px; }
+  .logo { font-size: 34px; }
+}
+@media (max-width: 768px) and (orientation: landscape) {
+  .local-video-box { width: 110px; height: 80px; bottom: 80px; }
+}
+
 </style>
 </head>
 <body>
@@ -683,7 +711,19 @@ async function ensureCameraOn() {
   const off = document.getElementById('localOff');
   const btn = document.getElementById('camBtn');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    localStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width:  { ideal: 1280, max: 1920 },
+                    height: { ideal: 720,  max: 1080 },
+                    frameRate: { ideal: 30, max: 30 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
     video.srcObject = localStream;
     video.style.display = 'block';
     off.style.display = 'none';
