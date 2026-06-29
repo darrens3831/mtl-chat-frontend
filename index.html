@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="MTL Chat - Rencontres vidéo aléatoires gratuites à Montréal et partout dans le monde. Parlez en face caméra avec des francophones en un clic.">
+  <meta name="keywords" content="chat video, rencontre montreal, video chat, chat aleatoire, francophone, omegle francais, azar francais, mtlchat, mtlchats">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://mtlchats.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MTL Chat - Rencontres vidéo à Montréal">
+  <meta property="og:description" content="Rencontres vidéo aléatoires gratuites à Montréal et dans le monde. Parlez en face caméra en un clic.">
+  <meta property="og:url" content="https://mtlchats.com/">
+  <meta property="og:site_name" content="MTL Chat">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MTL Chat - Rencontres vidéo à Montréal">
+  <meta name="twitter:description" content="Rencontres vidéo aléatoires gratuites à Montréal et dans le monde.">
 <title>MTL Chat - Rencontres vidéo Montréal</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -35,7 +47,7 @@
   .lobby-avatar { font-size: 26px; background: #16213e; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 2px solid #334155; }
   #call { position: relative; background: #000; }
   .remote-video-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #16213e); }
-  #remoteVideo { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #remoteVideo { width: 100%; height: 100%; object-fit: contain; background: #000; display: none; }
   .remote-placeholder { text-align: center; }
   .remote-avatar { width: 130px; height: 130px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto 15px; box-shadow: 0 0 0 6px rgba(233,69,96,0.2); }
   .remote-name { font-size: 20px; font-weight: 600; }
@@ -153,6 +165,12 @@
 @media (max-width: 768px) and (orientation: landscape) {
   .local-video-box { width: 110px; height: 80px; bottom: 80px; }
 }
+
+
+/* ---- Carte profil partenaire (style Azar) ---- */
+#searchingBlock .remote-avatar { overflow: hidden; }
+.remote-placeholder { transition: opacity 0.3s; }
+#searchingBlock.connecting .searching { color: #4ade80; }
 
 </style>
 </head>
@@ -756,15 +774,47 @@ const ICE_SERVERS = {
   ]
 };
 
-function myProfile() {
-  const account = getAccount();
-  const filterCode = currentGenderFilter === 'female' ? 'F' : currentGenderFilter === 'male' ? 'M' : 'random';
-  return {
-    gender: account ? account.gender : 'M',
-    filter: filterCode,
-    name: account && account.pseudo ? account.pseudo : 'Anonyme'
-  };
-}
+
+    // ---- Carte profil partenaire (style Azar) ----
+    function partnerInitial(name) {
+      return (name && name.trim()) ? name.trim().charAt(0).toUpperCase() : '?';
+    }
+    function showPartnerProfile(p) {
+      const block = document.getElementById('searchingBlock');
+      const avatar = document.getElementById('searchingAvatar');
+      const nameEl = document.getElementById('searchingName');
+      const locEl = document.getElementById('searchingText');
+      const name = p.name || 'Partenaire';
+      const loc = p.location || 'Montréal, QC';
+      const flag = (p.country === 'CA' || !p.country) ? '🇨🇦' : '🌍';
+      if (p.photo) {
+        avatar.innerHTML = '<img src="' + p.photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentNode.textContent=&#39;' + partnerInitial(name) + '&#39;">';
+      } else {
+        avatar.textContent = partnerInitial(name);
+      }
+      nameEl.textContent = name;
+      locEl.innerHTML = flag + ' ' + loc;
+      block.style.display = 'flex';
+      block.classList.add('connecting');
+    }
+    function hidePartnerProfile() {
+      const block = document.getElementById('searchingBlock');
+      block.style.display = 'none';
+      block.classList.remove('connecting');
+    }
+
+    function myProfile() {
+      const account = getAccount();
+      const filterCode = currentGenderFilter === 'female' ? 'F' : (currentGenderFilter === 'male' ? 'M' : 'random');
+      return {
+        gender: account ? account.gender : 'M',
+        filter: filterCode,
+        name: (account && account.pseudo) ? account.pseudo : 'Anonyme',
+        photo: (account && account.photo) ? account.photo : null,
+        location: (account && account.location) ? account.location : 'Montréal, QC',
+        country: (account && account.country) ? account.country : 'CA'
+      };
+    }
 
 function createPeerConnection() {
   const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -781,7 +831,7 @@ function createPeerConnection() {
     remoteVideo.srcObject = event.streams[0];
     remoteVideo.style.display = 'block';
     remoteVideo.play().catch(() => {});
-    document.getElementById('searchingBlock').style.display = 'none';
+    hidePartnerProfile();
   }
   pc.onconnectionstatechange = () => {
     if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
@@ -803,10 +853,10 @@ async function startWebRTC() {
 socket.on('matched', async (data) => {
   searching = false;
   isInitiator = data.initiator;
-  currentPartner = data.partnerProfile;
-  document.getElementById('searchingBlock').style.display = 'none';
+  currentPartner = data.partnerProfile || {};
+  showPartnerProfile(currentPartner);
   document.getElementById('chatHeaderName').textContent = currentPartner.name || 'Partenaire';
-  addMessage('👋 Connecté avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
+  addMessage('Connecté(e) avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
   startTimer();
   if (!isVip()) incrementCallsUsed();
   refreshVipUI();
@@ -838,7 +888,7 @@ socket.on('chat-message', (text) => { addMessage(text, false); });
 socket.on('partner-left', () => {
   closePeerConnection();
   if (document.getElementById('call').classList.contains('active')) {
-    addMessage("Le partenaire a quitté l'appel.", false);
+    addMessage('Le partenaire a quitté. Recherche du prochain...', false);
     findPartner();
   }
 });
@@ -854,18 +904,21 @@ function closePeerConnection() {
 }
 
 function findPartner() {
-  stopTimer();
-  closePeerConnection();
-  socket.emit('leave-room');
-  ensureCameraOn();
-  searching = true;
-  document.getElementById('searchingBlock').style.display = 'flex';
-  document.getElementById('searchingAvatar').textContent = '🔎';
-  document.getElementById('searchingName').textContent = "Recherche d'un partenaire...";
-  document.getElementById('searchingText').textContent = 'Connexion à Montréal en cours';
-  resetChat();
-  socket.emit('find-partner', myProfile());
-}
+      stopTimer();
+      closePeerConnection();
+      socket.emit('leave-room');
+      ensureCameraOn();
+      searching = true;
+      currentPartner = null;
+      const block = document.getElementById('searchingBlock');
+      block.style.display = 'flex';
+      block.classList.remove('connecting');
+      document.getElementById('searchingAvatar').textContent = '🔎';
+      document.getElementById('searchingName').textContent = 'Recherche d\'un partenaire...';
+      document.getElementById('searchingText').textContent = 'Connexion Montréal en cours';
+      resetChat();
+      socket.emit('find-partner', myProfile());
+    }
 
 function nextPartner() {
   if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
