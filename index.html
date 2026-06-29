@@ -173,6 +173,7 @@
 #searchingBlock.connecting .searching { color: #4ade80; }
 
 </style>
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 <!-- ===================== AUTHENTIFICATION / INSCRIPTION ===================== -->
@@ -247,8 +248,8 @@
     <div class="filter-block">
       <h4>🎯 Qui veux-tu rencontrer ?</h4>
       <button class="filter-btn active" data-g="random" onclick="setGenderFilter('random', this)">Aléatoire</button>
-      <button class="filter-btn" data-g="female" onclick="setGenderFilter('female', this)">Filles</button>
-      <button class="filter-btn" data-g="male" onclick="setGenderFilter('male', this)">Garçons</button>
+      <button class="filter-btn" data-g="female" onclick="setGenderFilter('female', this)">Femmes</button>
+      <button class="filter-btn" data-g="male" onclick="setGenderFilter('male', this)">Hommes</button>
       <div class="premium-note" id="premiumNotice">🔒 Filtre genre spécifique = <strong>réservé aux membres VIP</strong></div>
     </div>
     <div id="onlineCount"><span id="onlineCountNumber">—</span> Montréalais en ligne <span class="vip-badge" id="lobbyVipBadge" style="display:none;">⭐ VIP</span></div>
@@ -279,6 +280,7 @@
   </div>
   <div class="controls-bar">
     <button class="ctrl-btn off" id="camBtn" onclick="toggleCamera()" title="Caméra obligatoire">📷🔒</button>
+        <button class="ctrl-btn" id="muteBtn" onclick="toggleMute()" title="Micro">🎤</button>
     <button class="ctrl-btn next" onclick="nextPartner()">🔄 Suivant</button>
     <button class="ctrl-btn danger" onclick="endChat()">📞</button>
   </div>
@@ -325,6 +327,7 @@
     </div>
     <button class="pay-btn" onclick="confirmPurchase()">Payer <span id="payAmount">34,99$</span></button>
     <div class="pay-note">Paiement sécurisé via Stripe.</div>
+    <div id="embeddedCheckout" style="margin-top:14px;"></div>
   </div>
 </div>
 <!-- ===================== MODAL PAYWALL ===================== -->
@@ -351,6 +354,23 @@
     <div class="profile-row"><span>Identifiant</span><span id="profileIdentifier">—</span></div>
     <div class="profile-row"><span>Statut VIP</span><span id="profileVipExpiry">—</span></div>
     <div class="profile-row"><span>Appels effectués</span><span id="profileCallsUsed">—</span></div>
+    
+    <div class="profile-edit" style="margin:14px 0;padding:14px;background:rgba(255,255,255,0.04);border-radius:14px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div id="editPhotoWrap" onclick="document.getElementById('editPhotoInput').click()" style="cursor:pointer;position:relative;width:62px;height:62px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid #e94560;">
+          <img id="editPhotoPreview" style="width:100%;height:100%;object-fit:cover;display:block;" alt="">
+          <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;text-align:center;padding:2px 0;">📷 Changer</div>
+        </div>
+        <input id="editPhotoInput" type="file" accept="image/*" style="display:none;" onchange="handleProfilePhotoEdit(event)">
+        <div style="flex:1;">
+          <label style="font-size:12px;color:#9ca3af;display:block;margin-bottom:4px;">Nom affiché</label>
+          <input id="editNameInput" type="text" maxlength="20" placeholder="Ton nom" style="width:100%;padding:9px 11px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-size:14px;box-sizing:border-box;">
+        </div>
+      </div>
+      <div id="editNameLimit" style="font-size:11px;color:#9ca3af;margin-bottom:10px;"></div>
+      <div id="editProfileMsg" style="font-size:12px;margin-bottom:10px;min-height:14px;"></div>
+      <button class="vip-btn" style="width:100%;" onclick="saveProfileEdits()">💾 Enregistrer mon profil</button>
+    </div>
     <button class="vip-btn" style="width:100%; margin-top:16px;" onclick="closeProfileModal(); openVipModal();">⭐ Gérer mon abonnement VIP</button>
     <button class="logout-btn" onclick="logout()">🚪 Se déconnecter</button>
   </div>
@@ -527,6 +547,8 @@ const PLANS = {
 };
 
 const BACKEND_URL = "https://mtl-chat-backend.onrender.com";
+        // === REMPLACE par TA clé publique Stripe (pk_live_... en production, pk_test_... pour tester). Cette clé est publique. ===
+        const STRIPE_PUBLISHABLE_KEY = 'pk_test_REMPLACE_MOI';
 
 function getVipExpiry() { return parseInt(localStorage.getItem('mtlchat_vip_expiry') || '0', 10); }
 function isVip() { return getVipExpiry() > Date.now(); }
@@ -554,39 +576,60 @@ function refreshVipUI() {
   }
 }
 
-function openVipModal() { document.getElementById('vipModalBackdrop').classList.add('open'); }
-function closeVipModal() { document.getElementById('vipModalBackdrop').classList.remove('open'); }
+function openVipModal() {
+            document.getElementById('vipModalBackdrop').classList.add('open');
+            if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
+            const ec = document.getElementById('embeddedCheckout'); if (ec) ec.innerHTML = '';
+            const payBtn = document.querySelector('.pay-btn'); if (payBtn) { payBtn.style.display = ''; payBtn.disabled = false; }
+        }
+function closeVipModal() {
+            document.getElementById('vipModalBackdrop').classList.remove('open');
+            if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
+            const ec = document.getElementById('embeddedCheckout'); if (ec) ec.innerHTML = '';
+            const payBtn = document.querySelector('.pay-btn'); if (payBtn) { payBtn.style.display = ''; payBtn.disabled = false; }
+        }
 function selectPlan(key, el) {
   selectedPlan = key;
   document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('payAmount').textContent = PLANS[key].price.toFixed(2) + '$';
 }
-async function confirmPurchase() {
-  const plan = PLANS[selectedPlan];
-  const payBtn = document.querySelector('.pay-btn');
-  const originalText = payBtn.textContent;
-  payBtn.textContent = 'Redirection vers le paiement sécurisé...';
-  payBtn.disabled = true;
-  try {
-    const response = await fetch(BACKEND_URL + '/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: selectedPlan })
-    });
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      throw new Error(data.error || 'Réponse invalide du serveur');
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Impossible de démarrer le paiement. Vérifie que le backend est bien déployé et que BACKEND_URL est correctement configuré dans le code.");
-    payBtn.textContent = originalText;
-    payBtn.disabled = false;
-  }
-}
+async let stripeInstance = null;
+        let embeddedCheckoutInstance = null;
+
+        async function confirmPurchase() {
+            const plan = PLANS[selectedPlan];
+            const payBtn = document.querySelector('.pay-btn');
+            const container = document.getElementById('embeddedCheckout');
+            const originalHTML = payBtn.innerHTML;
+            payBtn.innerHTML = 'Chargement du paiement...';
+            payBtn.disabled = true;
+            try {
+                if (!window.Stripe) throw new Error('Stripe non chargé');
+                if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.indexOf('REMPLACE') !== -1) {
+                    throw new Error('Clé publique Stripe non configurée');
+                }
+                if (!stripeInstance) stripeInstance = Stripe(STRIPE_PUBLISHABLE_KEY);
+                const response = await fetch(BACKEND_URL + '/create-checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan: selectedPlan, uiMode: 'embedded' })
+                });
+                const data = await response.json();
+                if (!data.clientSecret) throw new Error(data.error || 'Réponse invalide du serveur');
+                if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
+                container.innerHTML = '';
+                embeddedCheckoutInstance = await stripeInstance.initEmbeddedCheckout({ clientSecret: data.clientSecret });
+                embeddedCheckoutInstance.mount('#embeddedCheckout');
+                payBtn.style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                alert('Impossible de démarrer le paiement. ' + (err.message || ''));
+                payBtn.innerHTML = originalHTML;
+                payBtn.disabled = false;
+                payBtn.style.display = '';
+            }
+        }
 
 async function checkPaymentReturn() {
   const params = new URLSearchParams(window.location.search);
@@ -678,7 +721,80 @@ function formatAuthMethod(m) {
   return '—';
 }
 
-function openProfileModal() {
+// ===== Profil éditable (style Azar) =====
+        function nameChangesThisWeek() {
+            try {
+                const raw = localStorage.getItem('mtlchat_name_changes');
+                const arr = raw ? JSON.parse(raw) : [];
+                const weekAgo = Date.now() - 7*24*60*60*1000;
+                return arr.filter(t => t > weekAgo);
+            } catch(e) { return []; }
+        }
+        function recordNameChange() {
+            const arr = nameChangesThisWeek();
+            arr.push(Date.now());
+            localStorage.setItem('mtlchat_name_changes', JSON.stringify(arr));
+        }
+        let pendingProfilePhoto = null;
+        function populateProfileEdit() {
+            const acc = getAccount();
+            if (!acc) return;
+            pendingProfilePhoto = null;
+            const nameInput = document.getElementById('editNameInput');
+            const preview = document.getElementById('editPhotoPreview');
+            const limit = document.getElementById('editNameLimit');
+            const msg = document.getElementById('editProfileMsg');
+            if (nameInput) nameInput.value = acc.pseudo || '';
+            if (preview) preview.src = acc.photo || ('https://ui-avatars.com/api/?background=e94560&color=fff&name=' + encodeURIComponent(acc.pseudo || 'U'));
+            if (msg) msg.textContent = '';
+            const used = nameChangesThisWeek().length;
+            const left = Math.max(0, 3 - used);
+            if (limit) limit.textContent = 'Changements de nom restants cette semaine : ' + left + '/3';
+        }
+        function handleProfilePhotoEdit(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (file.size > 4 * 1024 * 1024) {
+                document.getElementById('editProfileMsg').style.color = '#f87171';
+                document.getElementById('editProfileMsg').textContent = 'Image trop lourde (max 4 Mo).';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                pendingProfilePhoto = e.target.result;
+                document.getElementById('editPhotoPreview').src = pendingProfilePhoto;
+            };
+            reader.readAsDataURL(file);
+        }
+        function saveProfileEdits() {
+            const acc = getAccount();
+            if (!acc) return;
+            const msg = document.getElementById('editProfileMsg');
+            const newName = (document.getElementById('editNameInput').value || '').trim();
+            if (!newName) {
+                msg.style.color = '#f87171';
+                msg.textContent = 'Le nom ne peut pas être vide.';
+                return;
+            }
+            const nameChanged = newName !== (acc.pseudo || '');
+            if (nameChanged) {
+                const used = nameChangesThisWeek().length;
+                if (used >= 3) {
+                    msg.style.color = '#f87171';
+                    msg.textContent = 'Limite atteinte : maximum 3 changements de nom par semaine.';
+                    return;
+                }
+            }
+            if (nameChanged) { acc.pseudo = newName; recordNameChange(); }
+            if (pendingProfilePhoto) { acc.photo = pendingProfilePhoto; pendingProfilePhoto = null; }
+            saveAccount(acc);
+            if (typeof refreshVipUI === 'function') refreshVipUI();
+            try { openProfileModal(); } catch(e) {}
+            msg.style.color = '#4ade80';
+            msg.textContent = 'Profil enregistré ✓';
+        }
+
+        function openProfileModal() { populateProfileEdit();
   const account = getAccount();
   if (!account) { showScreen('auth'); return; }
   document.getElementById('profileName').textContent = account.pseudo || 'Membre';
@@ -732,9 +848,10 @@ async function ensureCameraOn() {
     localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'user',
-                    width:  { ideal: 1280, max: 1920 },
-                    height: { ideal: 720,  max: 1080 },
-                    frameRate: { ideal: 30, max: 30 }
+                    width:  { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 },
+                    aspectRatio: { ideal: 1.3333 },
+                    frameRate: { ideal: 24, max: 30 }
                 },
                 audio: {
                     echoCancellation: true,
@@ -962,6 +1079,23 @@ function stopTimer() {
 }
 
 async function toggleCamera() { await ensureCameraOn(); }
+
+        let micOn = true;
+        function toggleMute() {
+            const btn = document.getElementById('muteBtn');
+            if (!localStream) return;
+            micOn = !micOn;
+            localStream.getAudioTracks().forEach(t => { t.enabled = micOn; });
+            if (micOn) {
+                btn.classList.remove('off');
+                btn.innerHTML = '🎤';
+                btn.title = 'Micro activé';
+            } else {
+                btn.classList.add('off');
+                btn.innerHTML = '🔇';
+                btn.title = 'Micro coupé';
+            }
+        }
 
 function toggleChat() {
   chatOpen = !chatOpen;
