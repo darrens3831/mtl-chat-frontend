@@ -983,12 +983,15 @@ socket.on('matched', async (data) => {
   await startWebRTC();
             if (window.__connWatchdog) clearTimeout(window.__connWatchdog);
             window.__connWatchdog = setTimeout(() => {
-                try {
-                    const connected = pc && pc.connectionState === 'connected';
-                    if (!connected && document.getElementById('call').classList.contains('active')) {
-                        nextPartner();
-                    }
-                } catch(e) {}
+              try {
+                const st = peerConnection ? peerConnection.connectionState : null;
+                const rv = document.getElementById("remoteVideo");
+                const hasVideo = rv && rv.srcObject && rv.videoWidth > 0 && rv.readyState >= 2;
+                const connected = (st === "connected") && hasVideo;
+                if (!connected && document.getElementById("call").classList.contains("active")) {
+                  nextPartner();
+                }
+              } catch(e) {}
             }, 14000);
 });
 
