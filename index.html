@@ -939,10 +939,22 @@ function createPeerConnection() {
     }
   };
   pc.ontrack = (event) => {
-    const remoteVideo = document.getElementById('remoteVideo');
+    const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
-    remoteVideo.style.display = 'block';
-    remoteVideo.play().catch(() => {});
+    remoteVideo.style.display = "block";
+    remoteVideo.playsInline = true;
+    const tryPlay = () => {
+      remoteVideo.play().catch(() => {
+        remoteVideo.muted = true;
+        remoteVideo.play().then(() => {
+          const unmute = () => { remoteVideo.muted = false; document.removeEventListener("click", unmute); document.removeEventListener("touchstart", unmute); };
+          document.addEventListener("click", unmute, {once:true});
+          document.addEventListener("touchstart", unmute, {once:true});
+        }).catch(() => {});
+      });
+    };
+    tryPlay();
+    remoteVideo.onloadedmetadata = tryPlay;
     hidePartnerProfile();
   }
   pc.onconnectionstatechange = () => {
