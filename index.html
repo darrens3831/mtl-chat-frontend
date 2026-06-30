@@ -594,7 +594,7 @@ function selectPlan(key, el) {
   el.classList.add('selected');
   document.getElementById('payAmount').textContent = PLANS[key].price.toFixed(2) + '$';
 }
-async let stripeInstance = null;
+let stripeInstance = null;
         let embeddedCheckoutInstance = null;
 
         async function confirmPurchase() {
