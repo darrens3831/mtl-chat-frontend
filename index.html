@@ -877,18 +877,13 @@ let searching = false;
 
 const ICE_SERVERS = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    {
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    }
-  ]
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+                    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+                ]
 };
 
 
@@ -951,10 +946,18 @@ function createPeerConnection() {
     hidePartnerProfile();
   }
   pc.onconnectionstatechange = () => {
-    if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
-      document.getElementById('remoteVideo').style.display = 'none';
-    }
-  };
+                if (!pc) return;
+                const st = pc.connectionState;
+                if (st === 'connected') {
+                    if (window.__connWatchdog) { clearTimeout(window.__connWatchdog); window.__connWatchdog = null; }
+                }
+                if (['disconnected','failed','closed'].includes(st)) {
+                    document.getElementById('remoteVideo').style.display = 'none';
+                }
+                if (st === 'failed') {
+                    setTimeout(() => { try { if (document.getElementById('call').classList.contains('active')) nextPartner(); } catch(e){} }, 500);
+                }
+            };
   return pc;
 }
 
@@ -978,6 +981,15 @@ socket.on('matched', async (data) => {
   if (!isVip()) incrementCallsUsed();
   refreshVipUI();
   await startWebRTC();
+            if (window.__connWatchdog) clearTimeout(window.__connWatchdog);
+            window.__connWatchdog = setTimeout(() => {
+                try {
+                    const connected = pc && pc.connectionState === 'connected';
+                    if (!connected && document.getElementById('call').classList.contains('active')) {
+                        nextPartner();
+                    }
+                } catch(e) {}
+            }, 14000);
 });
 
 socket.on('signal', async (signal) => {
