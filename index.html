@@ -1047,11 +1047,11 @@ function closePeerConnection() {
   remoteVideo.style.display = 'none';
 }
 
-function findPartner() {
+async function findPartner() {
       stopTimer();
       closePeerConnection();
       socket.emit('leave-room');
-      ensureCameraOn();
+      await ensureCameraOn();
       searching = true;
       currentPartner = null;
       const block = document.getElementById('searchingBlock');
