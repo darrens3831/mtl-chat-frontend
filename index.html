@@ -58,6 +58,8 @@
   .top-bar .montreal-tag { background: #e94560; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin-left: 6px; }
   .local-video-box { position: absolute; bottom: 110px; right: 16px; width: 140px; height: 190px; background: #111; border-radius: 16px; overflow: hidden; border: 2px solid #e94560; z-index: 25; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
   .local-video-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #call:has(.chat-overlay.open) .local-video-box { bottom: calc(50% + 18px); z-index: 30; }
+  
   .local-off { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a2e; color: #64748b; font-size: 13px; text-align: center; flex-direction: column; gap: 6px; }
   .controls-bar { position: absolute; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; z-index: 25; }
   .ctrl-btn { width: 68px; height: 68px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 28px; background: rgba(20,20,30,0.75); color: white; transition: 0.15s; }
@@ -850,7 +852,6 @@ async function ensureCameraOn() {
                     facingMode: 'user',
                     width:  { ideal: 640, max: 1280 },
                     height: { ideal: 480, max: 720 },
-                    aspectRatio: { ideal: 1.3333 },
                     frameRate: { ideal: 24, max: 30 }
                 },
                 audio: {
@@ -943,14 +944,21 @@ function createPeerConnection() {
     remoteVideo.srcObject = event.streams[0];
     remoteVideo.style.display = "block";
     remoteVideo.playsInline = true;
+    remoteVideo.muted = false;
+    remoteVideo.volume = 1;
+    const armUnmute = () => {
+      const unmute = () => {
+        remoteVideo.muted = false;
+        remoteVideo.volume = 1;
+        remoteVideo.play().catch(() => {});
+        ["click","touchstart","keydown"].forEach(ev => document.removeEventListener(ev, unmute));
+      };
+      ["click","touchstart","keydown"].forEach(ev => document.addEventListener(ev, unmute, {once:true}));
+    };
     const tryPlay = () => {
       remoteVideo.play().catch(() => {
         remoteVideo.muted = true;
-        remoteVideo.play().then(() => {
-          const unmute = () => { remoteVideo.muted = false; document.removeEventListener("click", unmute); document.removeEventListener("touchstart", unmute); };
-          document.addEventListener("click", unmute, {once:true});
-          document.addEventListener("touchstart", unmute, {once:true});
-        }).catch(() => {});
+        remoteVideo.play().then(armUnmute).catch(() => {});
       });
     };
     tryPlay();
