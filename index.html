@@ -47,7 +47,7 @@
   .lobby-avatar { font-size: 26px; background: #16213e; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 2px solid #334155; }
   #call { position: relative; background: #000; }
   .remote-video-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #16213e); }
-  #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; display: none; z-index: 1; }
+  #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; background: #000; display: none; z-index: 1; }
   .remote-placeholder { text-align: center; position: relative; z-index: 2; }
   .remote-avatar { width: 130px; height: 130px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto 15px; box-shadow: 0 0 0 6px rgba(233,69,96,0.2); }
   .remote-name { font-size: 20px; font-weight: 600; }
@@ -58,6 +58,9 @@
   .top-bar .montreal-tag { background: #e94560; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin-left: 6px; }
   .local-video-box { position: absolute; bottom: 110px; right: 16px; width: 140px; height: 190px; background: #111; border-radius: 16px; overflow: hidden; border: 2px solid #e94560; z-index: 25; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
   .local-video-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .local-video-box video.rear-camera { transform: none; }
+  .switch-cam-btn { position: absolute; top: 6px; right: 6px; z-index: 26; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 14px; align-items: center; justify-content: center; cursor: pointer; display: none; }
+  .switch-cam-btn.visible { display: flex; }
   #call:has(.chat-overlay.open) .local-video-box { bottom: calc(50% + 18px); z-index: 30; }
   
   .local-off { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a2e; color: #64748b; font-size: 13px; text-align: center; flex-direction: column; gap: 6px; }
@@ -285,6 +288,7 @@
   <div class="local-video-box" id="localBox">
     <div class="local-off" id="localOff">📷<br>Caméra fermée</div>
     <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
+    <button class="switch-cam-btn" id="switchCamBtn" onclick="switchCamera()" title="Changer de caméra">🔄</button>
   </div>
   <div class="controls-bar">
     <button class="ctrl-btn off" id="camBtn" onclick="toggleCamera()" title="Caméra obligatoire">📷🔒</button>
@@ -556,7 +560,7 @@ const PLANS = {
 
 const BACKEND_URL = "https://mtl-chat-backend.onrender.com";
         // === REMPLACE par TA clé publique Stripe (pk_live_... en production, pk_test_... pour tester). Cette clé est publique. ===
-        const STRIPE_PUBLISHABLE_KEY = 'pk_test_REMPLACE_MOI';
+        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Tltou4Hlr3wmM0HzmrZfMQLVFDCmsBBRlCec5h5D5dyOZ3Rrw3MroSVJpxJoBWeOex3gLfhufj9X1OH03IASDzg00X6ngC9KO';
 
 function getVipExpiry() { return parseInt(localStorage.getItem('mtlchat_vip_expiry') || '0', 10); }
 function isVip() { return getVipExpiry() > Date.now(); }
@@ -853,6 +857,59 @@ function updateProfileFabIcon() {
   }
 }
 
+// ---- Détection d'appareil + contraintes caméra adaptatives (mobile/ordi, portrait/paysage) ----
+function isMobileDevice() {
+  const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const touch = (navigator.maxTouchPoints || 0) > 0;
+  const ua = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent);
+  return ua || (coarsePointer && touch);
+}
+
+let currentFacingMode = 'user';
+let hasMultipleCameras = false;
+
+function getVideoConstraints(facingMode) {
+  const mobile = isMobileDevice();
+  const portrait = window.innerHeight >= window.innerWidth;
+  const base = { facingMode, frameRate: { ideal: 24, max: 30 } };
+  if (mobile && portrait) {
+    // Selfie/appel vertical typique d'un téléphone (comme Azar/Omegle en mobile)
+    return Object.assign(base, {
+      width:  { ideal: 720,  max: 1080 },
+      height: { ideal: 1280, max: 1920 },
+      aspectRatio: { ideal: 9 / 16 }
+    });
+  }
+  if (mobile && !portrait) {
+    return Object.assign(base, {
+      width:  { ideal: 1280, max: 1920 },
+      height: { ideal: 720,  max: 1080 },
+      aspectRatio: { ideal: 16 / 9 }
+    });
+  }
+  // Ordinateur / webcam : format paysage standard
+  return Object.assign(base, {
+    width:  { ideal: 1280, max: 1920 },
+    height: { ideal: 720,  max: 1080 },
+    aspectRatio: { ideal: 16 / 9 }
+  });
+}
+
+function applyMirrorClass() {
+  const video = document.getElementById('localVideo');
+  if (video) video.classList.toggle('rear-camera', currentFacingMode === 'environment');
+}
+
+async function detectMultipleCameras() {
+  try {
+    if (!navigator.mediaDevices.enumerateDevices) return;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    hasMultipleCameras = devices.filter(d => d.kind === 'videoinput').length > 1;
+    const btn = document.getElementById('switchCamBtn');
+    if (btn) btn.classList.toggle('visible', isMobileDevice() && hasMultipleCameras);
+  } catch (e) { /* enumerateDevices peut échouer avant l'autorisation caméra sur certains navigateurs */ }
+}
+
 async function ensureCameraOn() {
   if (cameraOn) return;
   const video = document.getElementById('localVideo');
@@ -860,12 +917,7 @@ async function ensureCameraOn() {
   const btn = document.getElementById('camBtn');
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'user',
-                    width:  { ideal: 640, max: 1280 },
-                    height: { ideal: 480, max: 720 },
-                    frameRate: { ideal: 24, max: 30 }
-                },
+                video: getVideoConstraints(currentFacingMode),
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -877,10 +929,60 @@ async function ensureCameraOn() {
     off.style.display = 'none';
     cameraOn = true;
     btn.classList.remove('off');
+    applyMirrorClass();
+    detectMultipleCameras();
   } catch (err) {
     off.innerHTML = '⚠️<br>Caméra requise<br><small style="font-size:10px;">Autorise l\'accès</small>';
     off.style.display = 'flex';
     alert("La caméra est obligatoire pour utiliser MTL Chat. Autorise l'accès à ta caméra puis clique sur Suivant.");
+  }
+}
+
+// Réadapte la résolution/l'orientation caméra sans couper l'appel quand le téléphone pivote
+let orientationDebounce = null;
+function handleOrientationOrResize() {
+  if (!localStream) return;
+  clearTimeout(orientationDebounce);
+  orientationDebounce = setTimeout(async () => {
+    const track = localStream.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints(getVideoConstraints(currentFacingMode));
+    } catch (e) {
+      // Certains navigateurs mobiles refusent un changement de contraintes à chaud : on ignore, le flux courant continue.
+    }
+  }, 350);
+}
+window.addEventListener('orientationchange', handleOrientationOrResize);
+window.addEventListener('resize', handleOrientationOrResize);
+
+// Bascule caméra avant/arrière (comme Azar/Omegle sur mobile)
+async function switchCamera() {
+  if (!localStream || !hasMultipleCameras) return;
+  const btn = document.getElementById('switchCamBtn');
+  const previousFacingMode = currentFacingMode;
+  currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+  if (btn) btn.disabled = true;
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: getVideoConstraints(currentFacingMode),
+      audio: false
+    });
+    const newVideoTrack = newStream.getVideoTracks()[0];
+    const oldVideoTrack = localStream.getVideoTracks()[0];
+    if (oldVideoTrack) { oldVideoTrack.stop(); localStream.removeTrack(oldVideoTrack); }
+    localStream.addTrack(newVideoTrack);
+    document.getElementById('localVideo').srcObject = localStream;
+    applyMirrorClass();
+    if (peerConnection) {
+      const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) await sender.replaceTrack(newVideoTrack);
+    }
+  } catch (e) {
+    currentFacingMode = previousFacingMode;
+    alert("Impossible de changer de caméra.");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 const socket = io(BACKEND_URL);
