@@ -990,16 +990,20 @@ let peerConnection = null;
 let isInitiator = false;
 let searching = false;
 
-const ICE_SERVERS = {
-  iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-                    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-                ]
-};
+let ICE_SERVERS = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+  ] };
+  let iceServersFetchedAt = 0;
+  async function refreshIceServers() {
+    if (Date.now() - iceServersFetchedAt < 20 * 60 * 1000) return;
+  try {
+  const r = await fetch(BACKEND_URL + '/ice-servers');
+  const data = await r.json();
+  ICE_SERVERS = { iceServers: data };
+  iceServersFetchedAt = Date.now();
+  } catch (e) { console.warn('ICE servers fetch failed, using fallback STUN'); }
+  }
 
 
     // ---- Carte profil partenaire (style Azar) ----
@@ -1170,7 +1174,8 @@ async function findPartner() {
       stopTimer();
       closePeerConnection();
       socket.emit('leave-room');
-      await ensureCameraOn();
+await refreshIceServers();
+  await ensureCameraOn();
       searching = true;
       currentPartner = null;
       const block = document.getElementById('searchingBlock');
