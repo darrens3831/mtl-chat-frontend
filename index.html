@@ -564,8 +564,10 @@ const BACKEND_URL = "https://mtl-chat-backend.onrender.com";
 
 function getVipExpiry() { return parseInt(localStorage.getItem('mtlchat_vip_expiry') || '0', 10); }
 function isVip() { return getVipExpiry() > Date.now(); }
-function getCallsUsed() { return parseInt(localStorage.getItem('mtlchat_calls_used') || '0', 10); }
-function incrementCallsUsed() { localStorage.setItem('mtlchat_calls_used', String(getCallsUsed() + 1)); }
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function checkDailyCallsReset() { const today = todayStr(); if (localStorage.getItem('mtlchat_calls_day') !== today) { localStorage.setItem('mtlchat_calls_used', '0'); localStorage.setItem('mtlchat_calls_day', today); } }
+function getCallsUsed() { checkDailyCallsReset(); return parseInt(localStorage.getItem('mtlchat_calls_used') || '0', 10); }
+function incrementCallsUsed() { checkDailyCallsReset(); localStorage.setItem('mtlchat_calls_used', String(getCallsUsed() + 1)); }
 function activateVip(planKey) {
   const plan = PLANS[planKey];
   const base = Math.max(getVipExpiry(), Date.now());
