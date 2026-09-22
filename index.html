@@ -1066,6 +1066,7 @@ function createPeerConnection() {
     if (!stream) { stream = new MediaStream(); stream.addTrack(event.track); }
     if (rv.srcObject !== stream) rv.srcObject = stream;
     rv.style.display = 'block';
+      hidePartnerProfile();
     rv.muted = false;
     rv.volume = 1;
     rv.playsInline = true;
