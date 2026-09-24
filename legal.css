@@ -1,0 +1,29 @@
+/* Pages légales MTL Chat (conditions, remboursement, confidentialité, contact) */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top, #1a1a2e, #0b0f1a 70%) fixed;
+  background-color: #0b0f1a;
+  color: #dbe2f0;
+  line-height: 1.65;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+.brand { font-size: 22px; font-weight: 800; color: #fff; text-decoration: none; }
+.back { color: #e94560; text-decoration: none; font-weight: 600; font-size: 14px; }
+.back:hover, .legal-nav a:hover, a:hover { text-decoration: underline; }
+h1 { color: #fff; font-size: 28px; line-height: 1.25; margin: 0 0 6px; }
+.updated { color: #8391ad; font-size: 13px; margin-bottom: 26px; }
+h2 { color: #fff; font-size: 18px; margin: 30px 0 8px; }
+p, li { font-size: 15px; }
+ul { padding-left: 22px; }
+a { color: #f7a1b0; }
+.card { background: rgba(14, 18, 36, 0.85); border: 1px solid #253052; border-radius: 14px; padding: 16px 18px; margin: 18px 0; }
+.card strong { color: #fff; }
+.card p:first-child { margin-top: 0; }
+.card p:last-child { margin-bottom: 0; }
+.legal-nav { border-top: 1px solid #253052; margin-top: 40px; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+.legal-nav a { color: #9fb0d3; text-decoration: none; }
+.legal-nav a[aria-current="page"] { color: #fff; font-weight: 700; }
+.muted { color: #8391ad; font-size: 13px; }

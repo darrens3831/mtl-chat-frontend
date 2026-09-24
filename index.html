@@ -87,6 +87,10 @@
   .vip-btn { margin-top: 14px; padding: 10px 22px; border-radius: 20px; border: none; cursor: pointer; background: linear-gradient(135deg, #f59e0b, #d97706); color: #111; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
   .vip-badge { display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg,#f59e0b,#d97706); color: #111; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 12px; margin-left: 6px; }
   .calls-left { color: #94a3b8; font-size: 13px; margin-top: 8px; }
+  .legal-links { position: absolute; left: 0; right: 0; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 2; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; padding: 0 16px; font-size: 12px; }
+  .legal-links a, .pay-note a { color: #94a3b8; text-decoration: none; }
+  .legal-links a:hover, .pay-note a:hover { color: #fff; text-decoration: underline; }
+  .pay-note a { text-decoration: underline; }
   .calls-left.low { color: #f87171; }
   .top-vip-pill { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 16px; font-size: 12px; z-index: 21; display: flex; align-items: center; gap: 6px; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
@@ -276,6 +280,12 @@
     <button class="start-btn" onclick="startCall()">▶ Démarrer</button>
     <button class="vip-btn" onclick="openVipModal()">⭐ Devenir VIP</button>
   </div>
+  <nav class="legal-links" aria-label="Pages légales">
+    <a href="conditions.html">Conditions</a>
+    <a href="remboursement.html">Remboursement</a>
+    <a href="confidentialite.html">Confidentialité</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 </div>
 <!-- ===================== APPEL VIDÉO ===================== -->
 <div class="screen" id="call">
@@ -346,7 +356,7 @@
       <div class="plan-price">59,99$</div>
     </div>
     <button class="pay-btn" onclick="confirmPurchase()">Payer <span id="payAmount">34,99$</span></button>
-    <div class="pay-note">Paiement sécurisé via Stripe.</div>
+    <div class="pay-note">Paiement unique et sécurisé via Stripe, en dollars canadiens (CAD). Aucun renouvellement automatique. Non remboursable une fois activé (<a href="remboursement.html" target="_blank" rel="noopener">politique de remboursement</a>). En payant, tu acceptes les <a href="conditions.html" target="_blank" rel="noopener">conditions d'utilisation</a>.</div>
     <div id="embeddedCheckout" style="margin-top:14px;"></div>
   </div>
 </div>
