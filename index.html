@@ -576,10 +576,31 @@ function todayStr() { const d = new Date(); return d.getFullYear() + '-' + (d.ge
 function checkDailyCallsReset() { const today = todayStr(); if (localStorage.getItem('mtlchat_calls_day') !== today) { localStorage.setItem('mtlchat_calls_used', '0'); localStorage.setItem('mtlchat_calls_day', today); } }
 function getCallsUsed() { checkDailyCallsReset(); return parseInt(localStorage.getItem('mtlchat_calls_used') || '0', 10); }
 function incrementCallsUsed() { checkDailyCallsReset(); localStorage.setItem('mtlchat_calls_used', String(getCallsUsed() + 1)); }
-function activateVip(planKey) {
-  const plan = PLANS[planKey];
-  const base = Math.max(getVipExpiry(), Date.now());
-  localStorage.setItem('mtlchat_vip_expiry', String(base + plan.ms));
+// Le statut VIP est prouvé par un jeton signé par le serveur (après paiement Stripe).
+// L'expiration locale ne sert qu'à l'affichage ; le serveur vérifie le jeton.
+function getVipToken() { return localStorage.getItem('mtlchat_vip_token') || ''; }
+function storeVipToken(token, expiresAt) {
+  if (expiresAt <= getVipExpiry() && getVipToken()) return; // garder le jeton le plus long
+  localStorage.setItem('mtlchat_vip_token', token);
+  localStorage.setItem('mtlchat_vip_expiry', String(expiresAt));
+}
+function clearVip() {
+  localStorage.removeItem('mtlchat_vip_token');
+  localStorage.removeItem('mtlchat_vip_expiry');
+}
+async function syncVipStatus() {
+  const token = getVipToken();
+  if (!token) { if (getVipExpiry()) clearVip(); refreshVipUI(); return; }
+  try {
+    const r = await fetch(BACKEND_URL + '/vip-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await r.json();
+    if (d.vip) localStorage.setItem('mtlchat_vip_expiry', String(d.expiresAt));
+    else clearVip();
+  } catch (e) { /* serveur injoignable : on garde l'état local */ }
+  refreshVipUI();
 }
 
 function refreshVipUI() {
@@ -665,10 +686,12 @@ async function checkPaymentReturn() {
   try {
     const response = await fetch(BACKEND_URL + '/verify-session?session_id=' + encodeURIComponent(sessionId));
     const data = await response.json();
-    if (data.paid && data.plan) {
-      activateVip(data.plan);
+    if (data.paid && data.plan && data.token && data.active) {
+      storeVipToken(data.token, data.expiresAt);
       refreshVipUI();
       alert('✅ Paiement confirmé ! VIP activé (' + PLANS[data.plan].label + ').');
+    } else if (data.paid && !data.active) {
+      alert("Ce paiement a déjà expiré.");
     } else {
       alert("Le paiement n'a pas pu être confirmé. Si l'argent a été débité, contacte le support.");
     }
@@ -1053,7 +1076,8 @@ let ICE_SERVERS = { iceServers: [
         name: (account && account.pseudo) ? account.pseudo : 'Anonyme',
         photo: (account && account.photo) ? account.photo : null,
         location: (account && account.location) ? account.location : 'Montréal, QC',
-        country: (account && account.country) ? account.country : 'CA'
+        country: (account && account.country) ? account.country : 'CA',
+        vipToken: getVipToken() || undefined
       };
     }
 
@@ -1329,7 +1353,7 @@ window.onload = () => {
   populateLobbyList();
   refreshVipUI();
   updateProfileFabIcon();
-  checkPaymentReturn();
+  checkPaymentReturn().then(syncVipStatus);
   initGoogleSignIn();
   const account = getAccount();
   if (account) {
