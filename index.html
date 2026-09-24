@@ -488,15 +488,56 @@ function selectGender(g, el) {
   el.classList.add('selected');
 }
 
+// ---- Photos de profil : recadrées en carré et réduites (~256 px, JPEG ≈ 15-40 Ko) ----
+// Une photo de téléphone brute (2-5 Mo) remplissait le stockage du navigateur et était refusée
+// par le serveur ; réduite, elle s'enregistre et s'affiche chez le partenaire.
+const PHOTO_SIZE = 256;
+function resizeImageSrc(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        if (!side) return reject(new Error('image vide'));
+        const out = Math.min(PHOTO_SIZE, side);
+        const canvas = document.createElement('canvas');
+        canvas.width = out; canvas.height = out;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0e1224'; // fond pour les PNG transparents
+        ctx.fillRect(0, 0, out, out);
+        ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('image illisible'));
+    img.src = src;
+  });
+}
+function compressPhotoFile(file) {
+  const url = URL.createObjectURL(file);
+  return resizeImageSrc(url).finally(() => URL.revokeObjectURL(url));
+}
+// Réduit une ancienne photo déjà enregistrée en grand format (comptes créés avant ce correctif).
+function shrinkStoredPhoto() {
+  const acc = getAccount();
+  if (!acc || typeof acc.photo !== 'string' || !acc.photo.startsWith('data:image/') || acc.photo.length <= 150000) return Promise.resolve();
+  return resizeImageSrc(acc.photo).then((small) => {
+    const latest = getAccount();
+    if (latest && latest.photo === acc.photo) { latest.photo = small; saveAccount(latest); updateProfileFabIcon(); }
+  }).catch(() => {});
+}
+
 function handlePhotoUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    uploadedPhotoDataUrl = e.target.result;
-    document.getElementById('photoPreview').innerHTML = '<img src="' + uploadedPhotoDataUrl + '">';
-  };
-  reader.readAsDataURL(file);
+  const preview = document.getElementById('photoPreview');
+  compressPhotoFile(file).then((dataUrl) => {
+    uploadedPhotoDataUrl = dataUrl;
+    preview.innerHTML = '<img src="' + uploadedPhotoDataUrl + '">';
+  }).catch(() => {
+    preview.textContent = '⚠️';
+    alert("Impossible de lire cette image. Essaie une photo JPEG ou PNG.");
+  });
 }
 
 function calculateAge(birthdateStr) {
@@ -805,17 +846,20 @@ function formatAuthMethod(m) {
         function handleProfilePhotoEdit(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
-            if (file.size > 4 * 1024 * 1024) {
-                document.getElementById('editProfileMsg').style.color = '#f87171';
-                document.getElementById('editProfileMsg').textContent = 'Image trop lourde (max 4 Mo).';
+            const msg = document.getElementById('editProfileMsg');
+            if (file.size > 20 * 1024 * 1024) {
+                msg.style.color = '#f87171';
+                msg.textContent = 'Image trop lourde (max 20 Mo).';
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                pendingProfilePhoto = e.target.result;
+            compressPhotoFile(file).then(function(dataUrl) {
+                pendingProfilePhoto = dataUrl;
                 document.getElementById('editPhotoPreview').src = pendingProfilePhoto;
-            };
-            reader.readAsDataURL(file);
+                msg.textContent = '';
+            }).catch(function() {
+                msg.style.color = '#f87171';
+                msg.textContent = 'Impossible de lire cette image. Essaie une photo JPEG ou PNG.';
+            });
         }
         function saveProfileEdits() {
             const acc = getAccount();
@@ -1051,13 +1095,20 @@ let ICE_SERVERS = { iceServers: [
       const name = p.name || 'Partenaire';
       const loc = p.location || 'Montréal, QC';
       const flag = (p.country === 'CA' || !p.country) ? '🇨🇦' : '🌍';
-      if (p.photo) {
-        avatar.innerHTML = '<img src="' + p.photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentNode.textContent=&#39;' + partnerInitial(name) + '&#39;">';
-      } else {
-        avatar.textContent = partnerInitial(name);
+      // Les infos du partenaire sont insérées comme texte / propriétés (jamais en HTML brut),
+      // pour qu'un nom ou une photo piégés ne puissent pas exécuter de code ici.
+      avatar.textContent = partnerInitial(name);
+      if (typeof p.photo === 'string' && /^(data:image\/|https:\/\/)/.test(p.photo)) {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        img.onerror = () => { avatar.textContent = partnerInitial(name); };
+        img.src = p.photo;
+        avatar.textContent = '';
+        avatar.appendChild(img);
       }
       nameEl.textContent = name;
-      locEl.innerHTML = flag + ' ' + loc;
+      locEl.textContent = flag + ' ' + loc;
       block.style.display = 'flex';
       block.classList.add('connecting');
     }
@@ -1353,6 +1404,7 @@ window.onload = () => {
   populateLobbyList();
   refreshVipUI();
   updateProfileFabIcon();
+  shrinkStoredPhoto();
   checkPaymentReturn().then(syncVipStatus);
   initGoogleSignIn();
   const account = getAccount();
