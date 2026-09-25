@@ -618,8 +618,9 @@ const PLANS = {
 };
 
 const BACKEND_URL = "https://mtl-chat-backend.onrender.com";
-        // === REMPLACE par TA clé publique Stripe (pk_live_... en production, pk_test_... pour tester). Cette clé est publique. ===
-        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Tltou4Hlr3wmM0HzmrZfMQLVFDCmsBBRlCec5h5D5dyOZ3Rrw3MroSVJpxJoBWeOex3gLfhufj9X1OH03IASDzg00X6ngC9KO';
+        // Clé publique Stripe en PRODUCTION (vrais paiements). Elle doit aller avec la clé secrète sk_live_... sur Render.
+        // Pour tester, remettre la clé pk_test_... ET la clé sk_test_... sur Render. Cette clé est publique.
+        const STRIPE_PUBLISHABLE_KEY = 'pk_live_51TltoaKphFSmEJMfF3eVRrTG9aHggQZHhyEPKzXLY0byBE06cFDn7Xzt1xBMhrcHl71ViPx0ZJMGgwE4b4BMBqrE000BWAlmA0';
 
 function getVipExpiry() { return parseInt(localStorage.getItem('mtlchat_vip_expiry') || '0', 10); }
 function isVip() { return getVipExpiry() > Date.now(); }
