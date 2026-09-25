@@ -92,6 +92,7 @@
   .legal-links a:hover, .pay-note a:hover { color: #fff; text-decoration: underline; }
   .pay-note a { text-decoration: underline; }
   .calls-left.low { color: #f87171; }
+  .partner-vip-pill { position: absolute; top: calc(62px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 21; display: flex; align-items: center; gap: 4px; background: linear-gradient(135deg,#f59e0b,#d97706); color: #111; font-weight: 700; font-size: 12px; padding: 5px 12px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
   .top-vip-pill { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 16px; font-size: 12px; z-index: 21; display: flex; align-items: center; gap: 6px; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
   .modal-backdrop.open { display: flex; }
@@ -294,6 +295,7 @@
     <div class="badge" id="timerBadge">00:00</div>
   </div>
   <div class="top-vip-pill" id="topVipPill" style="display:none;">⭐ VIP actif</div>
+  <div class="partner-vip-pill" id="partnerVipPill" style="display:none;" title="Ton partenaire est membre VIP">⭐ Partenaire VIP</div>
   <div class="remote-video-area" id="remoteArea">
     <video id="remoteVideo" autoplay playsinline></video>
     <div class="remote-placeholder" id="searchingBlock">
@@ -337,9 +339,9 @@
     <div class="vip-sub">Débloque l'expérience complète sur MTL Chat</div>
     <ul class="vip-perks">
       <li>✅ Filtre de genre (choisis Filles ou Garçons)</li>
-      <li>✅ Appels illimités (vs 300 appels/mois en gratuit)</li>
-      <li>✅ File d'attente prioritaire</li>
-      <li>✅ Badge VIP visible pendant les appels</li>
+      <li>✅ Appels illimités (vs 300 appels/jour en gratuit)</li>
+      <li>✅ File d'attente prioritaire (tu es jumelé en premier)</li>
+      <li>✅ Badge VIP visible par tes partenaires pendant les appels</li>
     </ul>
     <div class="plan-card" data-plan="1d" onclick="selectPlan('1d', this)">
       <div><div class="plan-name">1 jour</div><div class="plan-sub">Accès complet pendant 24h</div></div>
@@ -366,7 +368,7 @@
     <span class="close-x" onclick="closeLimitModal()">✕</span>
     <div class="paywall-icon">⏳</div>
     <h2>Limite atteinte</h2>
-    <div class="vip-sub">Tu as utilisé tes 300 appels gratuits. Passe VIP pour des appels illimités, sans attendre.</div>
+    <div class="vip-sub">Tu as utilisé tes 300 appels gratuits d'aujourd'hui. Reviens demain, ou passe VIP pour des appels illimités sans attendre.</div>
     <button class="pay-btn" onclick="closeLimitModal(); openVipModal();">⭐ Voir les offres VIP</button>
   </div>
 </div>
@@ -666,7 +668,7 @@ function refreshVipUI() {
     callsLeftEl.classList.remove('low');
   } else {
     const left = Math.max(0, FREE_CALL_LIMIT - callsUsed);
-    callsLeftEl.textContent = left + ' appels gratuits restants';
+    callsLeftEl.textContent = left + " appels gratuits restants aujourd'hui";
     callsLeftEl.classList.toggle('low', left <= 20);
   }
 }
@@ -1119,6 +1121,14 @@ let ICE_SERVERS = { iceServers: [
         avatar.appendChild(img);
       }
       nameEl.textContent = name;
+      if (p.vip === true) {
+        const vb = document.createElement('span');
+        vb.className = 'vip-badge';
+        vb.textContent = '⭐ VIP';
+        nameEl.appendChild(vb);
+      }
+      const pvp = document.getElementById('partnerVipPill');
+      if (pvp) pvp.style.display = (p.vip === true) ? 'flex' : 'none';
       locEl.textContent = flag + ' ' + loc;
       block.style.display = 'flex';
       block.classList.add('connecting');
@@ -1212,7 +1222,7 @@ socket.on('matched', async (data) => {
   isInitiator = data.initiator;
   currentPartner = data.partnerProfile || {};
   showPartnerProfile(currentPartner);
-  document.getElementById('chatHeaderName').textContent = currentPartner.name || 'Partenaire';
+  document.getElementById('chatHeaderName').textContent = (currentPartner.name || 'Partenaire') + (currentPartner.vip === true ? ' ⭐ VIP' : '');
   addMessage('Connecté(e) avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
   startTimer();
   if (!isVip()) incrementCallsUsed();
@@ -1287,6 +1297,8 @@ function closePeerConnection() {
   if (window.__connWatchdog) { clearTimeout(window.__connWatchdog); window.__connWatchdog = null; }
   pendingCandidates = [];
   currentPartner = null;
+  const pvp = document.getElementById('partnerVipPill');
+  if (pvp) pvp.style.display = 'none';
   if (peerConnection) {
     peerConnection.close();
     peerConnection = null;
