@@ -47,9 +47,9 @@
   .lobby-avatar { font-size: 26px; background: #16213e; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border: 2px solid #334155; }
   #call { position: relative; background: #000; }
   .remote-video-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #16213e); overflow: hidden; }
-  #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; background: #000; display: none; z-index: 1; }
-  /* Formats différents (ex. téléphone vertical <-> ordi horizontal) : image entière, sans zoom, sur un fond flou de la même vidéo */
-  #remoteVideo.fit-contain { object-fit: contain; background: transparent; }
+  /* Vidéo du partenaire en format vertical (comme FaceTime/Azar). La taille exacte est calculée en JS (updateRemoteFit). */
+  #remoteVideo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; background: #000; display: none; z-index: 1; }
+  #remoteVideo.fit-card { background: transparent; }
   #remoteVideoBg { position: absolute; left: 50%; top: 50%; width: 25%; height: 25%; object-fit: cover; transform: translate(-50%, -50%) scale(4.6); filter: blur(6px) brightness(0.55); display: none; z-index: 0; pointer-events: none; }
   .remote-placeholder { text-align: center; position: relative; z-index: 2; }
   .remote-avatar { width: 130px; height: 130px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto 15px; box-shadow: 0 0 0 6px rgba(233,69,96,0.2); }
@@ -59,12 +59,12 @@
   .top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent); z-index: 20; }
   .top-bar .badge { background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 16px; font-size: 13px; }
   .top-bar .montreal-tag { background: #e94560; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin-left: 6px; }
-  .local-video-box { position: absolute; bottom: 110px; right: 16px; width: 140px; height: 190px; background: #111; border-radius: 16px; overflow: hidden; border: 2px solid #e94560; z-index: 25; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  /* Ta propre vidéo : petite fenêtre verticale en haut à droite (comme FaceTime/Azar) */
+  .local-video-box { position: absolute; top: calc(62px + env(safe-area-inset-top, 0px)); right: 16px; width: 150px; height: 200px; background: #111; border-radius: 16px; overflow: hidden; border: 2px solid #e94560; z-index: 25; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
   .local-video-box video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
   .local-video-box video.rear-camera { transform: none; }
   .switch-cam-btn { position: absolute; top: 6px; right: 6px; z-index: 26; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 14px; align-items: center; justify-content: center; cursor: pointer; display: none; }
   .switch-cam-btn.visible { display: flex; }
-  #call:has(.chat-overlay.open) .local-video-box { bottom: calc(50% + 18px); z-index: 30; }
   
   .local-off { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1a1a2e; color: #64748b; font-size: 13px; text-align: center; flex-direction: column; gap: 6px; }
   .controls-bar { position: absolute; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; z-index: 25; }
@@ -156,12 +156,21 @@
 /* ---- Optimisations mobile / responsive ---- */
 #call { height: 100vh; height: 100dvh; }
 #remoteVideo { background: #000; }
-#remoteVideo.fit-contain { background: transparent; }
+#remoteVideo.fit-card { background: transparent; }
+/* Ordinateur : l'appel s'affiche dans un cadre vertical centré, comme un téléphone (FaceTime/Azar) */
+@media (min-width: 769px) and (hover: hover) and (pointer: fine) {
+  #call {
+    width: min(100vw, max(380px, calc(100vh * 3 / 4)));
+    width: min(100vw, max(380px, calc(100dvh * 3 / 4)));
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 20px 60px rgba(0,0,0,0.6);
+  }
+}
 @media (max-width: 768px) {
   .local-video-box {
-    width: 96px;
-    height: 132px;
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    width: 100px;
+    height: 150px;
+    top: calc(58px + env(safe-area-inset-top, 0px));
     right: 12px;
     border-radius: 12px;
     border-width: 2px;
@@ -182,8 +191,9 @@
   .start-btn { padding: 16px 44px; font-size: 18px; }
   .logo { font-size: 34px; }
 }
-@media (max-width: 768px) and (orientation: landscape) {
-  .local-video-box { width: 110px; height: 80px; bottom: 80px; }
+/* Téléphone à l'horizontale (écran peu haut) : fenêtre perso plus petite, toujours verticale */
+@media (max-height: 500px) and (orientation: landscape) {
+  .local-video-box { width: 76px; height: 114px; top: calc(54px + env(safe-area-inset-top, 0px)); }
 }
 
 
@@ -1048,7 +1058,8 @@ async function ensureCameraOn() {
 let orientationDebounce = null;
 let lastCameraPortrait = null;
 function handleOrientationOrResize() {
-  updateRemoteFit();
+  // Clavier du chat ouvert sur téléphone : on ne redimensionne pas la vidéo (évite qu'elle saute pendant qu'on écrit)
+  if (!isTypingOnMobile()) updateRemoteFit();
   updateLocalBoxSize();
   if (!localStream || !isMobileDevice()) return; // ordinateur : la caméra ne dépend pas de la fenêtre
   clearTimeout(orientationDebounce);
@@ -1068,24 +1079,38 @@ function handleOrientationOrResize() {
 window.addEventListener('orientationchange', handleOrientationOrResize);
 window.addEventListener('resize', handleOrientationOrResize);
 
-// ---- Vidéo du partenaire : plein écran si les formats se ressemblent, sinon image entière sur fond flou ----
-// (évite l'effet « trop zoomé » entre un téléphone vertical et un ordinateur horizontal)
-const REMOTE_COVER_MIN_VISIBLE = 0.6; // en plein écran, on accepte de couper au plus ~40 % de l'image
+// ---- Vidéo du partenaire : format vertical comme FaceTime/Azar ----
+// Plein écran quand le recadrage reste léger (téléphone <-> téléphone, ordi <-> ordi).
+// Sinon (ex. webcam d'ordi horizontale vue sur un téléphone) : cadre vertical 3:4 au maximum,
+// ni bande horizontale ni gros plan sur le visage, et le reste est rempli par un fond flou de la même vidéo.
+const REMOTE_PORTRAIT_CARD = 3 / 4;     // vidéo horizontale : cadre vertical 3:4, jamais plus étroit (sinon trop zoomé)
+const REMOTE_MIN_VISIBLE_WIDTH = 0.6;   // vidéo verticale : on garde au moins 60 % de la largeur
+const REMOTE_MIN_VISIBLE_HEIGHT = 0.75; // on garde au moins 75 % de la hauteur (pour ne pas couper la tête)
+function computeRemoteCard(vw, vh, cw, ch) {
+  const va = vw / vh, ca = cw / ch;
+  const minAspect = va >= 1 ? REMOTE_PORTRAIT_CARD : va * REMOTE_MIN_VISIBLE_WIDTH; // plus étroit = trop zoomé sur le visage
+  const maxAspect = va / REMOTE_MIN_VISIBLE_HEIGHT; // plus large = haut/bas trop coupés
+  const c = Math.min(Math.max(ca, minAspect), maxAspect);
+  if (Math.abs(c - ca) / ca < 0.02) return null; // plein écran
+  return c < ca ? { w: Math.round(ch * c), h: ch } : { w: cw, h: Math.round(cw / c) };
+}
+function isTypingOnMobile() {
+  const el = document.activeElement;
+  return isMobileDevice() && !!el && el.id === 'messageInput';
+}
 function updateRemoteFit() {
   const rv = document.getElementById('remoteVideo');
   const bg = document.getElementById('remoteVideoBg');
   const area = document.getElementById('remoteArea');
   if (!rv || !area) return;
   const vw = rv.videoWidth, vh = rv.videoHeight, cw = area.clientWidth, ch = area.clientHeight;
-  let contain = false;
-  if (vw && vh && cw && ch) {
-    const va = vw / vh, ca = cw / ch;
-    contain = Math.min(va / ca, ca / va) < REMOTE_COVER_MIN_VISIBLE;
-  }
-  rv.classList.toggle('fit-contain', contain);
+  const card = (vw && vh && cw && ch) ? computeRemoteCard(vw, vh, cw, ch) : null;
+  rv.style.width = card ? card.w + 'px' : '';
+  rv.style.height = card ? card.h + 'px' : '';
+  rv.classList.toggle('fit-card', !!card);
   if (!bg) return;
   const src = rv.srcObject;
-  if (contain && src && rv.style.display !== 'none') {
+  if (card && src && rv.style.display !== 'none') {
     if (bg.__src !== src) {
       bg.__src = src;
       try { bg.srcObject = new MediaStream(src.getVideoTracks()); } catch (e) { bg.srcObject = null; }
@@ -1101,20 +1126,12 @@ function updateRemoteFit() {
   }
 }
 
-// ---- Ta propre vidéo (petite fenêtre) : même forme que ta caméra, donc pas de zoom ----
+// ---- Ta propre vidéo : petite fenêtre toujours verticale en haut à droite (taille fixée dans le CSS) ----
 function updateLocalBoxSize() {
-  const video = document.getElementById('localVideo');
   const box = document.getElementById('localBox');
-  if (!video || !box) return;
-  const vw = video.videoWidth, vh = video.videoHeight;
-  if (!cameraOn || !vw || !vh) { box.style.width = ''; box.style.height = ''; return; }
-  const mobile = isMobileDevice();
-  const longSide = mobile ? (window.innerWidth > window.innerHeight ? 128 : 150) : 220;
-  const ar = vw / vh;
-  const w = ar >= 1 ? longSide : Math.round(longSide * ar);
-  const h = ar >= 1 ? Math.round(longSide / ar) : longSide;
-  box.style.width = w + 'px';
-  box.style.height = h + 'px';
+  if (!box) return;
+  box.style.width = '';
+  box.style.height = '';
 }
 
 // ---- Qualité d'envoi : jusqu'à 30 images/s et un débit plus élevé (le navigateur baisse tout seul si le réseau est faible) ----
@@ -1137,6 +1154,8 @@ async function tuneVideoSender(pc) {
   const lv = document.getElementById('localVideo');
   if (rv) { rv.addEventListener('loadedmetadata', updateRemoteFit); rv.addEventListener('resize', updateRemoteFit); }
   if (lv) { lv.addEventListener('loadedmetadata', updateLocalBoxSize); lv.addEventListener('resize', updateLocalBoxSize); }
+  const mi = document.getElementById('messageInput');
+  if (mi) mi.addEventListener('blur', () => setTimeout(updateRemoteFit, 350)); // clavier refermé : on recadre
 })();
 
 // Bascule caméra avant/arrière (comme Azar/Omegle sur mobile)
