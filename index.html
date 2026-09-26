@@ -1065,28 +1065,39 @@ function handleOrientationOrResize() {
 window.addEventListener('orientationchange', handleOrientationOrResize);
 window.addEventListener('resize', handleOrientationOrResize);
 
-// ---- Vidéo du partenaire (inspiré d'Azar) ----
-// Téléphone : toujours en plein écran, sans flou.
-// Ordinateur : vidéo d'un autre ordinateur (horizontale) en plein écran ; vidéo d'un téléphone (verticale)
-// agrandie dans un grand cadre carré au centre (toute la largeur de l'image, un peu coupée en haut et en bas),
-// sur toute la hauteur de l'écran, entourée de la même vidéo floutée (comme FaceTime/Azar).
+// ---- Vidéo du partenaire (inspiré d'Azar/FaceTime) ----
+// Téléphone : plein écran, sans flou (téléphone <-> téléphone).
+// Téléphone qui reçoit une webcam d'ordi (image horizontale) : image entière sur toute la largeur
+// (on voit la personne en entier, même loin de son ordi), au centre, entourée de la même vidéo floutée.
+// Ordinateur : vidéo d'un autre ordinateur en plein écran ; vidéo d'un téléphone (verticale) agrandie
+// dans un grand cadre carré au centre, sur toute la hauteur, entourée de la même vidéo floutée.
 const DESKTOP_PORTRAIT_KEEP_HEIGHT = 0.75; // image du téléphone agrandie en cadre carré : on garde 75 % de sa hauteur (toute la largeur)
+const PHONE_LANDSCAPE_MAX_ASPECT = 99;     // webcam d'ordi vue sur téléphone : forme du cadre (99 = image entière, 4/3 = un peu coupée sur les côtés)
+const PHONE_LANDSCAPE_BLUR = true;         // flou autour (sinon fond sombre)
 function updateRemoteFit() {
   const rv = document.getElementById('remoteVideo');
   const area = document.getElementById('remoteArea');
   if (!rv || !area) return;
   const vw = rv.videoWidth, vh = rv.videoHeight, cw = area.clientWidth, ch = area.clientHeight;
-  let tileWidth = 0;
-  if (!isMobileDevice() && vw && vh && cw && ch && vw < vh && rv.style.display !== 'none') {
-    const aspect = Math.min(1, (vw / vh) / DESKTOP_PORTRAIT_KEEP_HEIGHT);
-    const w = Math.round(ch * aspect);
-    if (w < cw - 2) tileWidth = w; // fenêtre très étroite : plein écran
+  let tileW = 0, tileH = 0, blur = false;
+  if (vw && vh && cw && ch && rv.style.display !== 'none') {
+    const va = vw / vh;
+    if (!isMobileDevice() && va < 1) {
+      // Ordinateur qui reçoit un téléphone
+      const w = Math.round(ch * Math.min(1, va / DESKTOP_PORTRAIT_KEEP_HEIGHT));
+      if (w < cw - 2) { tileW = w; tileH = ch; blur = true; } // fenêtre très étroite : plein écran
+    } else if (isMobileDevice() && va > 1 && cw < ch) {
+      // Téléphone (à la verticale) qui reçoit une webcam d'ordi
+      const h = Math.round(cw / Math.min(va, PHONE_LANDSCAPE_MAX_ASPECT));
+      if (h < ch - 2) { tileW = cw; tileH = h; blur = PHONE_LANDSCAPE_BLUR; }
+    }
   }
-  const width = tileWidth ? tileWidth + 'px' : '';
+  const width = tileW ? tileW + 'px' : '';
+  const height = tileH && tileH !== ch ? tileH + 'px' : '';
   if (rv.style.width !== width) rv.style.width = width;
-  if (rv.style.height) rv.style.height = '';
-  area.classList.toggle('portrait-tile', !!tileWidth);
-  updateRemoteBlur(rv, !!tileWidth);
+  if (rv.style.height !== height) rv.style.height = height;
+  area.classList.toggle('portrait-tile', !!tileW);
+  updateRemoteBlur(rv, blur);
 }
 function updateRemoteBlur(rv, show) {
   const bg = document.getElementById('remoteVideoBg');
