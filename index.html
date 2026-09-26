@@ -157,16 +157,8 @@
 #call { height: 100vh; height: 100dvh; }
 #remoteVideo { background: #000; }
 #remoteVideo.fit-card { background: transparent; }
-/* Ordinateur : le cadre de l'appel prend la forme de la vidéo reçue, le plus grand possible (comme FaceTime sur Mac).
-   Partenaire sur téléphone : de 3:4 jusqu'au carré ; partenaire sur ordinateur : horizontal. --stage-aspect est réglé en JS. */
+/* Ordinateur : l'appel occupe tout l'écran (voir updateRemoteFit pour le cadrage de la vidéo reçue) */
 @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
-  #call {
-    width: min(100vw, max(380px, calc(100vh * var(--stage-aspect, 0.75))));
-    width: min(100vw, max(380px, calc(100dvh * var(--stage-aspect, 0.75))));
-    margin: 0 auto;
-    transition: width 0.3s ease;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 20px 60px rgba(0,0,0,0.6);
-  }
   /* Ta fenêtre perso sur ordinateur : carrée, pour moins recadrer la webcam (qui filme à l'horizontale) */
   .local-video-box { width: 180px; height: 180px; }
 }
@@ -1072,33 +1064,26 @@ function handleOrientationOrResize() {
 window.addEventListener('orientationchange', handleOrientationOrResize);
 window.addEventListener('resize', handleOrientationOrResize);
 
-// ---- Vidéo du partenaire : format vertical comme FaceTime/Azar ----
-// Plein écran quand le recadrage reste léger (téléphone <-> téléphone, ordi <-> ordi).
-// Sinon (ex. webcam d'ordi horizontale vue sur un téléphone) : cadre vertical 3:4 au maximum,
-// ni bande horizontale ni gros plan sur le visage, et le reste est rempli par un fond flou de la même vidéo.
-const REMOTE_LANDSCAPE_CARD = 1;       // vidéo horizontale (webcam d'ordi) vue sur téléphone : cadre carré, jamais plus étroit (sinon trop zoomé)
+// ---- Vidéo du partenaire ----
+// Téléphone à la verticale : toujours le même cadre carré sur toute la largeur, que le partenaire
+// soit sur téléphone ou sur ordinateur (le reste de l'écran = la même vidéo floutée).
+// Ordinateur (et téléphone à l'horizontale) : l'appel prend tout l'écran ; la vidéo reçue est affichée
+// le plus grand possible sans trop couper le visage (on garde au moins 75 % de la hauteur et, pour une
+// webcam horizontale, un cadre au moins carré), et le reste de l'écran = la même vidéo floutée.
+const REMOTE_LANDSCAPE_CARD = 1;        // vidéo horizontale : cadre au moins carré (sinon trop zoomé)
 const REMOTE_MIN_VISIBLE_WIDTH = 0.6;   // vidéo verticale : on garde au moins 60 % de la largeur
 const REMOTE_MIN_VISIBLE_HEIGHT = 0.75; // on garde au moins 75 % de la hauteur (pour ne pas couper la tête)
 function computeRemoteCard(vw, vh, cw, ch) {
   const va = vw / vh, ca = cw / ch;
+  if (isMobileDevice() && ca < 1) {
+    const side = Math.min(cw, ch);
+    return { w: side, h: side }; // même dimension pour tous les partenaires
+  }
   const minAspect = va >= 1 ? Math.min(REMOTE_LANDSCAPE_CARD, va) : va * REMOTE_MIN_VISIBLE_WIDTH; // plus étroit = trop zoomé sur le visage
   const maxAspect = va / REMOTE_MIN_VISIBLE_HEIGHT; // plus large = haut/bas trop coupés
   const c = Math.min(Math.max(ca, minAspect), maxAspect);
   if (Math.abs(c - ca) / ca < 0.02) return null; // plein écran
   return c < ca ? { w: Math.round(ch * c), h: ch } : { w: cw, h: Math.round(cw / c) };
-}
-// Ordinateur : forme du cadre = forme de la vidéo reçue (entre 3:4 vertical et 16:9 horizontal).
-// Partenaire sur téléphone (vidéo verticale) : cadre élargi jusqu'au carré pour une image plus grande ;
-// on garde au moins 75 % de la hauteur, et la vidéo du téléphone a assez de pixels pour ne pas perdre en netteté.
-// Pendant la recherche d'un partenaire on garde la forme précédente (pas de saut à chaque « Suivant »).
-function updateStageShape(vw, vh) {
-  if (!vw || !vh) return;
-  const call = document.getElementById('call');
-  if (!call) return;
-  const va = vw / vh;
-  const target = va < 1 ? Math.min(va / REMOTE_MIN_VISIBLE_HEIGHT, 1) : va;
-  const value = Math.min(Math.max(target, 3 / 4), 16 / 9).toFixed(3);
-  if (call.style.getPropertyValue('--stage-aspect') !== value) call.style.setProperty('--stage-aspect', value);
 }
 function isTypingOnMobile() {
   const el = document.activeElement;
@@ -1109,7 +1094,6 @@ function updateRemoteFit() {
   const bg = document.getElementById('remoteVideoBg');
   const area = document.getElementById('remoteArea');
   if (!rv || !area) return;
-  updateStageShape(rv.videoWidth, rv.videoHeight);
   const vw = rv.videoWidth, vh = rv.videoHeight, cw = area.clientWidth, ch = area.clientHeight;
   const card = (vw && vh && cw && ch) ? computeRemoteCard(vw, vh, cw, ch) : null;
   rv.style.width = card ? card.w + 'px' : '';
@@ -1164,7 +1148,7 @@ async function tuneVideoSender(pc) {
   if (lv) { lv.addEventListener('loadedmetadata', updateLocalBoxSize); lv.addEventListener('resize', updateLocalBoxSize); }
   const mi = document.getElementById('messageInput');
   if (mi) mi.addEventListener('blur', () => setTimeout(updateRemoteFit, 350)); // clavier refermé : on recadre
-  // Le cadre change de taille (forme adaptée sur ordinateur, fenêtre redimensionnée) : on recadre la vidéo
+  // La zone vidéo change de taille (fenêtre redimensionnée, rotation) : on recadre la vidéo
   const area = document.getElementById('remoteArea');
   if (area && window.ResizeObserver) {
     new ResizeObserver(() => { if (!isTypingOnMobile()) updateRemoteFit(); }).observe(area);
