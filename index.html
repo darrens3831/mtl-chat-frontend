@@ -48,7 +48,9 @@
   #call { position: relative; background: #000; }
   .remote-video-area { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #16213e); overflow: hidden; }
   /* Vidéo du partenaire : plein écran partout (sans flou). Recadrage centré, légèrement vers le haut pour garder le visage. */
-  #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; background: #000; display: none; z-index: 1; }
+  #remoteVideo { position: absolute; inset: 0; margin: auto; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; background: #000; display: none; z-index: 1; }
+  /* Ordinateur + partenaire sur téléphone : vidéo dans un cadre vertical centré, fond sombre sur les côtés (pas de flou) */
+  .remote-video-area.portrait-tile { background: #05070d; }
   .remote-placeholder { text-align: center; position: relative; z-index: 2; }
   .remote-avatar { width: 130px; height: 130px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 60px; margin: 0 auto 15px; box-shadow: 0 0 0 6px rgba(233,69,96,0.2); }
   .remote-name { font-size: 20px; font-weight: 600; }
@@ -1059,14 +1061,26 @@ function handleOrientationOrResize() {
 window.addEventListener('orientationchange', handleOrientationOrResize);
 window.addEventListener('resize', handleOrientationOrResize);
 
-// ---- Vidéo du partenaire : toujours en plein écran, sans fond flou (téléphone et ordinateur) ----
-// La vidéo remplit tout l'écran (object-fit: cover dans le CSS). On s'assure seulement qu'aucune
-// taille réduite ne reste appliquée.
+// ---- Vidéo du partenaire (inspiré d'Azar) ----
+// Téléphone : toujours en plein écran.
+// Ordinateur : vidéo d'un autre ordinateur (horizontale) en plein écran ; vidéo d'un téléphone (verticale)
+// dans un cadre vertical centré sur toute la hauteur, sans flou et sans gros recadrage.
+const DESKTOP_PORTRAIT_KEEP_HEIGHT = 1; // part de la hauteur de l'image du téléphone gardée à l'écran (1 = image entière)
 function updateRemoteFit() {
   const rv = document.getElementById('remoteVideo');
-  if (!rv) return;
-  if (rv.style.width) rv.style.width = '';
+  const area = document.getElementById('remoteArea');
+  if (!rv || !area) return;
+  const vw = rv.videoWidth, vh = rv.videoHeight, cw = area.clientWidth, ch = area.clientHeight;
+  let tileWidth = 0;
+  if (!isMobileDevice() && vw && vh && cw && ch && vw < vh && rv.style.display !== 'none') {
+    const aspect = Math.min(1, (vw / vh) / DESKTOP_PORTRAIT_KEEP_HEIGHT);
+    const w = Math.round(ch * aspect);
+    if (w < cw - 2) tileWidth = w; // fenêtre très étroite : plein écran
+  }
+  const width = tileWidth ? tileWidth + 'px' : '';
+  if (rv.style.width !== width) rv.style.width = width;
   if (rv.style.height) rv.style.height = '';
+  area.classList.toggle('portrait-tile', !!tileWidth);
 }
 
 // ---- Ta propre vidéo : petite fenêtre toujours verticale en haut à droite (taille fixée dans le CSS) ----
