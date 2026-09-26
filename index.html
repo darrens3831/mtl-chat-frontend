@@ -1067,12 +1067,12 @@ window.addEventListener('resize', handleOrientationOrResize);
 
 // ---- Vidéo du partenaire (inspiré d'Azar/FaceTime) ----
 // Téléphone : plein écran, sans flou (téléphone <-> téléphone).
-// Téléphone qui reçoit une webcam d'ordi (image horizontale) : image entière sur toute la largeur
-// (on voit la personne en entier, même loin de son ordi), au centre, entourée de la même vidéo floutée.
+// Téléphone qui reçoit une webcam d'ordi (image horizontale) : cadre 4:3 sur toute la largeur, au centre
+// (on voit bien la personne même loin de son ordi, côtés un peu coupés), entouré de la même vidéo floutée.
 // Ordinateur : vidéo d'un autre ordinateur en plein écran ; vidéo d'un téléphone (verticale) agrandie
 // dans un grand cadre carré au centre, sur toute la hauteur, entourée de la même vidéo floutée.
 const DESKTOP_PORTRAIT_KEEP_HEIGHT = 0.75; // image du téléphone agrandie en cadre carré : on garde 75 % de sa hauteur (toute la largeur)
-const PHONE_LANDSCAPE_MAX_ASPECT = 99;     // webcam d'ordi vue sur téléphone : forme du cadre (99 = image entière, 4/3 = un peu coupée sur les côtés)
+const PHONE_LANDSCAPE_MAX_ASPECT = 4 / 3;  // webcam d'ordi vue sur téléphone : cadre 4:3 sur toute la largeur (plus grand, côtés un peu coupés ; 99 = image entière)
 const PHONE_LANDSCAPE_BLUR = true;         // flou autour (sinon fond sombre)
 function updateRemoteFit() {
   const rv = document.getElementById('remoteVideo');
