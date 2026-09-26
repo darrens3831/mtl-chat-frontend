@@ -157,19 +157,21 @@
 #call { height: 100vh; height: 100dvh; }
 #remoteVideo { background: #000; }
 #remoteVideo.fit-card { background: transparent; }
-/* Ordinateur : l'appel s'affiche dans un cadre vertical centré, comme un téléphone (FaceTime/Azar) */
+/* Ordinateur : le cadre de l'appel prend la forme de la vidéo reçue, le plus grand possible (comme FaceTime sur Mac).
+   Vertical 3:4 pour un partenaire sur téléphone, large pour un partenaire sur ordinateur. --stage-aspect est réglé en JS. */
 @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
   #call {
-    width: min(100vw, max(380px, calc(100vh * 3 / 4)));
-    width: min(100vw, max(380px, calc(100dvh * 3 / 4)));
+    width: min(100vw, max(380px, calc(100vh * var(--stage-aspect, 0.75))));
+    width: min(100vw, max(380px, calc(100dvh * var(--stage-aspect, 0.75))));
     margin: 0 auto;
+    transition: width 0.3s ease;
     box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 20px 60px rgba(0,0,0,0.6);
   }
 }
 @media (max-width: 768px) {
   .local-video-box {
-    width: 100px;
-    height: 150px;
+    width: 108px;
+    height: 144px;
     top: calc(58px + env(safe-area-inset-top, 0px));
     right: 12px;
     border-radius: 12px;
@@ -191,9 +193,9 @@
   .start-btn { padding: 16px 44px; font-size: 18px; }
   .logo { font-size: 34px; }
 }
-/* Téléphone à l'horizontale (écran peu haut) : fenêtre perso plus petite, toujours verticale */
+/* Téléphone à l'horizontale (écran peu haut) : fenêtre perso plus petite, toujours verticale (3:4 comme la caméra) */
 @media (max-height: 500px) and (orientation: landscape) {
-  .local-video-box { width: 76px; height: 114px; top: calc(54px + env(safe-area-inset-top, 0px)); }
+  .local-video-box { width: 84px; height: 112px; top: calc(54px + env(safe-area-inset-top, 0px)); }
 }
 
 
@@ -985,23 +987,21 @@ function screenIsPortrait() {
 
 function getVideoConstraints(facingMode) {
   const mobile = isMobileDevice();
-  const portrait = screenIsPortrait();
+  if (mobile) {
+    // Les navigateurs mobiles lisent largeur/hauteur dans le sens natif (horizontal) du capteur,
+    // puis tournent l'image eux-mêmes quand le téléphone est vertical (on reçoit alors du 960x1280).
+    // Demander « 720x1280 » faisait recadrer une fine bande du capteur = visage trop zoomé.
+    // On demande donc le format natif 4:3, sans recadrage : tout le champ de la caméra frontale,
+    // le visage entre dans le cadre même avec le téléphone proche, et autant de pixels qu'avant.
+    return {
+      facingMode,
+      width:  { ideal: 1280 },
+      height: { ideal: 960 },
+      resizeMode: 'none',
+      frameRate: { ideal: 30 }
+    };
+  }
   const base = { facingMode, frameRate: { ideal: 30, max: 30 } };
-  if (mobile && portrait) {
-    // Selfie/appel vertical typique d'un téléphone (comme Azar/Omegle en mobile)
-    return Object.assign(base, {
-      width:  { ideal: 720,  max: 1080 },
-      height: { ideal: 1280, max: 1920 },
-      aspectRatio: { ideal: 9 / 16 }
-    });
-  }
-  if (mobile && !portrait) {
-    return Object.assign(base, {
-      width:  { ideal: 1280, max: 1920 },
-      height: { ideal: 720,  max: 1080 },
-      aspectRatio: { ideal: 16 / 9 }
-    });
-  }
   // Ordinateur / webcam : format paysage standard
   return Object.assign(base, {
     width:  { ideal: 1280, max: 1920 },
@@ -1061,20 +1061,8 @@ function handleOrientationOrResize() {
   // Clavier du chat ouvert sur téléphone : on ne redimensionne pas la vidéo (évite qu'elle saute pendant qu'on écrit)
   if (!isTypingOnMobile()) updateRemoteFit();
   updateLocalBoxSize();
-  if (!localStream || !isMobileDevice()) return; // ordinateur : la caméra ne dépend pas de la fenêtre
-  clearTimeout(orientationDebounce);
-  orientationDebounce = setTimeout(async () => {
-    const portrait = screenIsPortrait();
-    if (portrait === lastCameraPortrait) return; // ex. clavier ouvert : rien à changer
-    const track = localStream && localStream.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      await track.applyConstraints(getVideoConstraints(currentFacingMode));
-      lastCameraPortrait = portrait;
-    } catch (e) {
-      // Certains navigateurs mobiles refusent un changement de contraintes à chaud : on ignore, le flux courant continue.
-    }
-  }, 350);
+  // Rotation du téléphone : rien à changer côté caméra, le navigateur tourne l'image tout seul
+  // (les contraintes ne dépendent plus de l'orientation).
 }
 window.addEventListener('orientationchange', handleOrientationOrResize);
 window.addEventListener('resize', handleOrientationOrResize);
@@ -1094,6 +1082,15 @@ function computeRemoteCard(vw, vh, cw, ch) {
   if (Math.abs(c - ca) / ca < 0.02) return null; // plein écran
   return c < ca ? { w: Math.round(ch * c), h: ch } : { w: cw, h: Math.round(cw / c) };
 }
+// Ordinateur : forme du cadre = forme de la vidéo reçue (entre 3:4 vertical et 16:9 horizontal).
+// Pendant la recherche d'un partenaire on garde la forme précédente (pas de saut à chaque « Suivant »).
+function updateStageShape(vw, vh) {
+  if (!vw || !vh) return;
+  const call = document.getElementById('call');
+  if (!call) return;
+  const value = Math.min(Math.max(vw / vh, 3 / 4), 16 / 9).toFixed(3);
+  if (call.style.getPropertyValue('--stage-aspect') !== value) call.style.setProperty('--stage-aspect', value);
+}
 function isTypingOnMobile() {
   const el = document.activeElement;
   return isMobileDevice() && !!el && el.id === 'messageInput';
@@ -1103,6 +1100,7 @@ function updateRemoteFit() {
   const bg = document.getElementById('remoteVideoBg');
   const area = document.getElementById('remoteArea');
   if (!rv || !area) return;
+  updateStageShape(rv.videoWidth, rv.videoHeight);
   const vw = rv.videoWidth, vh = rv.videoHeight, cw = area.clientWidth, ch = area.clientHeight;
   const card = (vw && vh && cw && ch) ? computeRemoteCard(vw, vh, cw, ch) : null;
   rv.style.width = card ? card.w + 'px' : '';
@@ -1156,6 +1154,11 @@ async function tuneVideoSender(pc) {
   if (lv) { lv.addEventListener('loadedmetadata', updateLocalBoxSize); lv.addEventListener('resize', updateLocalBoxSize); }
   const mi = document.getElementById('messageInput');
   if (mi) mi.addEventListener('blur', () => setTimeout(updateRemoteFit, 350)); // clavier refermé : on recadre
+  // Le cadre change de taille (forme adaptée sur ordinateur, fenêtre redimensionnée) : on recadre la vidéo
+  const area = document.getElementById('remoteArea');
+  if (area && window.ResizeObserver) {
+    new ResizeObserver(() => { if (!isTypingOnMobile()) updateRemoteFit(); }).observe(area);
+  }
 })();
 
 // Bascule caméra avant/arrière (comme Azar/Omegle sur mobile)
