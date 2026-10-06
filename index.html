@@ -477,6 +477,8 @@ function decodeGoogleJwt(token) {
 
 function handleGoogleCredential(response) {
   const profile = decodeGoogleJwt(response.credential);
+  // Le serveur vérifie la connexion Google et renvoie un jeton de compte (sert à compter les appels gratuits)
+  pendingUserTokenPromise = requestUserToken(response.credential);
   pendingAuthMethod = 'google';
   pendingIdentifier = profile.email;
   uploadedPhotoDataUrl = profile.picture || null;
@@ -493,6 +495,21 @@ function handleGoogleCredential(response) {
 
 let pendingAuthMethod = null;
 let pendingIdentifier = null;
+let pendingUserTokenPromise = null;
+function requestUserToken(credential) {
+  return fetch(BACKEND_URL + '/auth/google', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential })
+  }).then(r => r.ok ? r.json() : null).then(d => (d && d.userToken) || null).catch(() => null);
+}
+// Ajoute le jeton de compte dès qu'il arrive (le serveur peut mettre quelques secondes à se réveiller)
+function attachUserToken(promise, identifier) {
+  if (!promise) return;
+  promise.then((token) => {
+    if (!token) return;
+    const acc = getAccount();
+    if (acc && acc.identifier === identifier) { acc.userToken = token; saveAccount(acc); syncCallsStatus(); }
+  });
+}
 let selectedSignupGender = null;
 let uploadedPhotoDataUrl = null;
 
@@ -612,6 +629,7 @@ function finishSignup() {
     photo: uploadedPhotoDataUrl || null,
     createdAt: Date.now()
   });
+  attachUserToken(pendingUserTokenPromise, pendingIdentifier);
   enterLobby();
 }
 
@@ -633,7 +651,7 @@ function enterLobby() {
   }
 }
 
-const FREE_CALL_LIMIT = 300;
+let FREE_CALL_LIMIT = 300; // la valeur du serveur remplace celle-ci
 const PLANS = {
   '1d': { label: '1 jour',  price: 11.99, ms: 1 * 24 * 60 * 60 * 1000 },
   '7d': { label: '7 jours', price: 34.99, ms: 7 * 24 * 60 * 60 * 1000 },
@@ -651,6 +669,24 @@ function todayStr() { const d = new Date(); return d.getFullYear() + '-' + (d.ge
 function checkDailyCallsReset() { const today = todayStr(); if (localStorage.getItem('mtlchat_calls_day') !== today) { localStorage.setItem('mtlchat_calls_used', '0'); localStorage.setItem('mtlchat_calls_day', today); } }
 function getCallsUsed() { checkDailyCallsReset(); return parseInt(localStorage.getItem('mtlchat_calls_used') || '0', 10); }
 function incrementCallsUsed() { checkDailyCallsReset(); localStorage.setItem('mtlchat_calls_used', String(getCallsUsed() + 1)); }
+// Le nombre d'appels est compté par le serveur ; le navigateur garde seulement une copie pour l'affichage.
+function setCallsUsed(n, limit) {
+  checkDailyCallsReset();
+  if (typeof n === 'number' && n >= 0) localStorage.setItem('mtlchat_calls_used', String(n));
+  if (typeof limit === 'number' && limit > 0) FREE_CALL_LIMIT = limit;
+}
+async function syncCallsStatus() {
+  try {
+    const acc = getAccount();
+    const r = await fetch(BACKEND_URL + '/calls-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userToken: (acc && acc.userToken) || undefined, vipToken: getVipToken() || undefined })
+    });
+    const d = await r.json();
+    if (!d.vip) setCallsUsed(d.used, d.limit);
+  } catch (e) { /* serveur injoignable : on garde l'affichage actuel */ }
+  refreshVipUI();
+}
 // Le statut VIP est prouvé par un jeton signé par le serveur (après paiement Stripe).
 // L'expiration locale ne sert qu'à l'affichage ; le serveur vérifie le jeton.
 function getVipToken() { return localStorage.getItem('mtlchat_vip_token') || ''; }
@@ -1291,7 +1327,8 @@ let ICE_SERVERS = { iceServers: [
         photo: (account && account.photo) ? account.photo : null,
         location: (account && account.location) ? account.location : 'Montréal, QC',
         country: (account && account.country) ? account.country : 'CA',
-        vipToken: getVipToken() || undefined
+        vipToken: getVipToken() || undefined,
+        userToken: (account && account.userToken) || undefined
       };
     }
 
@@ -1370,7 +1407,8 @@ socket.on('matched', async (data) => {
   document.getElementById('chatHeaderName').textContent = (currentPartner.name || 'Partenaire') + (currentPartner.vip === true ? ' ⭐ VIP' : '');
   addMessage('Connecté(e) avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
   startTimer();
-  if (!isVip()) incrementCallsUsed();
+  if (typeof data.callsUsed === 'number') setCallsUsed(data.callsUsed, data.callsLimit); // compteur du serveur
+  else if (!isVip() && data.callsUsed === undefined) incrementCallsUsed();         // ancien serveur
   refreshVipUI();
   await startWebRTC();
             if (window.__connWatchdog) clearTimeout(window.__connWatchdog);
@@ -1429,6 +1467,14 @@ socket.on('online-count', (count) => {
 });
 
 socket.on('chat-message', (text) => { addMessage(text, false); });
+
+// Limite d'appels gratuits atteinte (décidé par le serveur)
+socket.on('limit-reached', (d) => {
+  setCallsUsed(d && d.used, d && d.limit);
+  if (document.getElementById('call').classList.contains('active')) leaveCallCompletely();
+  refreshVipUI();
+  openLimitModal();
+});
 
 socket.on('partner-left', () => {
   closePeerConnection();
@@ -1604,7 +1650,7 @@ window.onload = () => {
   refreshVipUI();
   updateProfileFabIcon();
   shrinkStoredPhoto();
-  checkPaymentReturn().then(syncVipStatus);
+  checkPaymentReturn().then(syncVipStatus).then(syncCallsStatus);
   initGoogleSignIn();
   const account = getAccount();
   if (account) {
