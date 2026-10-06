@@ -193,6 +193,14 @@
 }
 
 
+/* ---- Petits écrans et téléphone à l'horizontale : l'accueil et l'inscription défilent au lieu d'être coupés ---- */
+#lobby, #auth { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; }
+#lobby { padding-bottom: 10px; }
+@media (max-width: 340px) { #lobby { padding-top: 70px; } } /* très petits écrans : le logo passe sous le bouton profil */
+#lobby > .lobby-content, #auth > .auth-card { margin-top: auto; margin-bottom: auto; flex-shrink: 0; }
+#lobby-bg, .lobby-overlay { position: fixed; }
+.legal-links { position: relative; left: auto; right: auto; bottom: auto; width: 100%; flex-shrink: 0; margin-top: 10px; margin-bottom: env(safe-area-inset-bottom, 0px); }
+
 /* ---- Carte profil partenaire (style Azar) ---- */
 #searchingBlock .remote-avatar { overflow: hidden; }
 .remote-placeholder { transition: opacity 0.3s; }
@@ -313,7 +321,7 @@
       <div class="remote-avatar" id="searchingAvatar">🔎</div>
       <div class="remote-name" id="searchingName">Recherche d'un partenaire...</div>
       <div class="searching" id="searchingText">Connexion à Montréal en cours</div>
-        <div class="search-dots" id="searchDots"><span></span><span></span><span></span></div></span></span>
+        <div class="search-dots" id="searchDots"><span></span><span></span><span></span></div>
     </div>
   </div>
   <div class="local-video-box" id="localBox">
@@ -565,7 +573,9 @@ function handlePhotoUpload(event) {
 
 function calculateAge(birthdateStr) {
   const today = new Date();
-  const bd = new Date(birthdateStr);
+  // "AAAA-MM-JJ" lu comme une date locale (sinon lu en UTC : décalage d'un jour à Montréal)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthdateStr || '');
+  const bd = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(birthdateStr);
   let age = today.getFullYear() - bd.getFullYear();
   const monthDiff = today.getMonth() - bd.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < bd.getDate())) age--;
@@ -700,16 +710,26 @@ function selectPlan(key, el) {
   selectedPlan = key;
   document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
-  document.getElementById('payAmount').textContent = PLANS[key].price.toFixed(2) + '$';
+  // Formulaire de paiement déjà ouvert pour une autre offre : on le ferme pour ne pas payer la mauvaise offre
+  if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
+  const ec = document.getElementById('embeddedCheckout'); if (ec) ec.innerHTML = '';
+  const payBtn = document.querySelector('#vipModalBackdrop .pay-btn');
+  if (payBtn) { payBtn.style.display = ''; payBtn.disabled = false; payBtn.innerHTML = 'Payer <span id="payAmount"></span>'; }
+  document.getElementById('payAmount').textContent = PLANS[key].price.toFixed(2).replace('.', ',') + '$';
 }
 let stripeInstance = null;
         let embeddedCheckoutInstance = null;
 
         async function confirmPurchase() {
+            const requestedPlan = selectedPlan;
+            // L'offre a changé ou la fenêtre a été fermée pendant le chargement : on n'ouvre pas ce paiement
+            const stale = () => selectedPlan !== requestedPlan || !document.getElementById('vipModalBackdrop').classList.contains('open');
             const plan = PLANS[selectedPlan];
             const payBtn = document.querySelector('.pay-btn');
             const container = document.getElementById('embeddedCheckout');
             const originalHTML = payBtn.innerHTML;
+            // Remet le bouton « Payer » tel quel (si l'offre a changé, selectPlan l'a déjà remis à jour)
+            const abort = () => { if (selectedPlan === requestedPlan) { payBtn.innerHTML = originalHTML; payBtn.disabled = false; payBtn.style.display = ''; } };
             payBtn.innerHTML = 'Chargement du paiement...';
             payBtn.disabled = true;
             try {
@@ -724,14 +744,18 @@ let stripeInstance = null;
                     body: JSON.stringify({ plan: selectedPlan, uiMode: 'embedded' })
                 });
                 const data = await response.json();
+                if (stale()) return abort();
                 if (!data.clientSecret) throw new Error(data.error || 'Réponse invalide du serveur');
                 if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
                 container.innerHTML = '';
-                embeddedCheckoutInstance = await stripeInstance.initEmbeddedCheckout({ clientSecret: data.clientSecret });
+                const checkout = await stripeInstance.initEmbeddedCheckout({ clientSecret: data.clientSecret });
+                if (stale()) { try { checkout.destroy(); } catch(e){} return abort(); }
+                embeddedCheckoutInstance = checkout;
                 embeddedCheckoutInstance.mount('#embeddedCheckout');
                 payBtn.style.display = 'none';
             } catch (err) {
                 console.error(err);
+                if (stale()) return abort();
                 alert('Impossible de démarrer le paiement. ' + (err.message || ''));
                 payBtn.innerHTML = originalHTML;
                 payBtn.disabled = false;
@@ -1024,13 +1048,19 @@ async function detectMultipleCameras() {
   } catch (e) { /* enumerateDevices peut échouer avant l'autorisation caméra sur certains navigateurs */ }
 }
 
-async function ensureCameraOn() {
-  if (cameraOn) return;
+// Une seule ouverture de caméra à la fois (sinon deux flux s'ouvraient et l'un restait allumé après l'appel)
+let cameraStarting = null;
+function ensureCameraOn() {
+  if (cameraOn) return Promise.resolve();
+  if (!cameraStarting) cameraStarting = startCameraNow().finally(() => { cameraStarting = null; });
+  return cameraStarting;
+}
+async function startCameraNow() {
   const video = document.getElementById('localVideo');
   const off = document.getElementById('localOff');
   const btn = document.getElementById('camBtn');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
                 video: getVideoConstraints(currentFacingMode),
                 audio: {
                     echoCancellation: true,
@@ -1038,6 +1068,12 @@ async function ensureCameraOn() {
                     autoGainControl: true
                 }
             });
+    if (!document.getElementById('call').classList.contains('active')) {
+      stream.getTracks().forEach(t => t.stop()); // l'appel a été quitté pendant l'ouverture de la caméra
+      return;
+    }
+    localStream = stream;
+    localStream.getAudioTracks().forEach(t => { t.enabled = micOn; }); // garder le micro coupé s'il l'était
     video.srcObject = localStream;
     video.style.display = 'block';
     off.style.display = 'none';
@@ -1397,8 +1433,10 @@ socket.on('chat-message', (text) => { addMessage(text, false); });
 socket.on('partner-left', () => {
   closePeerConnection();
   if (document.getElementById('call').classList.contains('active')) {
-    addMessage('Le partenaire a quitté. Recherche du prochain...', false);
-    findPartner();
+    // Message ajouté après le nettoyage du chat fait par findPartner (sinon il était effacé aussitôt)
+    findPartner().then(() => {
+      if (searching) addMessage('Le partenaire a quitté. Recherche du prochain...', false);
+    });
   }
 });
 
@@ -1424,7 +1462,9 @@ async function findPartner() {
       socket.emit('leave-room');
       searching = false;
 await refreshIceServers();
+      if (!document.getElementById('call').classList.contains('active')) return; // appel quitté entre-temps
   await ensureCameraOn();
+      if (!document.getElementById('call').classList.contains('active')) return;
       if (!localStream) {
         document.getElementById('searchingName').textContent = 'Caméra requise';
         document.getElementById('searchingText').textContent = 'Autorise la caméra puis clique sur Suivant';
@@ -1437,38 +1477,64 @@ await refreshIceServers();
       block.classList.remove('connecting');
       document.getElementById('searchingAvatar').textContent = '🔎';
       document.getElementById('searchingName').textContent = 'Recherche d\'un partenaire...';
-      document.getElementById('searchingText').textContent = 'Connexion Montréal en cours';
+      document.getElementById('searchingText').textContent = 'Connexion à Montréal en cours';
       resetChat();
       socket.emit('find-partner', myProfile());
     }
 
 function nextPartner() {
   if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
-    stopTimer();
-    showScreen('lobby');
-    refreshVipUI();
+    leaveCallCompletely(); // coupe vraiment l'appel (avant : le partenaire restait connecté, micro ouvert)
     openLimitModal();
     return;
   }
   findPartner();
 }
 
-function endChat() {
-  if (confirm("Quitter l'appel ?")) {
-    stopTimer();
-    closePeerConnection();
-    socket.emit('leave-room');
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-      localStream = null;
-      cameraOn = false;
-    }
+// Quitte l'appel pour de bon : partenaire prévenu, connexion vidéo fermée, caméra et micro éteints, retour à l'accueil.
+function leaveCallCompletely() {
+  const inCall = document.getElementById('call').classList.contains('active');
+  stopTimer();
+  searching = false;
+  closePeerConnection();
+  try { socket.emit('leave-room'); } catch (e) {}
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  cameraOn = false;
+  if (inCall) {
+    resetChat();
     showScreen('lobby');
     refreshVipUI();
   }
 }
 
+function endChat() {
+  if (confirm("Quitter l'appel ?")) leaveCallCompletely();
+}
+
+// Quitter le site (fermer l'onglet, changer de page, recharger) : déconnexion totale de l'appel.
+window.addEventListener('pagehide', () => {
+  leaveCallCompletely();
+  try { socket.disconnect(); } catch (e) {}
+});
+// Retour sur la page depuis le cache du navigateur (bouton Précédent) : on se reconnecte au serveur.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) { try { if (!socket.connected) socket.connect(); } catch (err) {} }
+});
+// Téléphone : quitter le site (écran d'accueil, autre appli, écran verrouillé) coupe l'appel,
+// sinon le partenaire resterait devant une image figée.
+document.addEventListener('visibilitychange', () => {
+  // (sauf pendant l'ouverture de la caméra : la fenêtre d'autorisation d'Android peut masquer la page)
+  if (document.visibilityState === 'hidden' && isMobileDevice() && !cameraStarting &&
+      document.getElementById('call').classList.contains('active')) {
+    leaveCallCompletely();
+  }
+});
+
 function startTimer() {
+  clearInterval(timerInterval); // jamais deux minuteries en même temps
   secondsElapsed = 0;
   timerInterval = setInterval(() => {
     secondsElapsed++;
