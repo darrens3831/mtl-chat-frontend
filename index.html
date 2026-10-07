@@ -7,14 +7,37 @@
   <meta name="keywords" content="chat video, rencontre montreal, video chat, chat aleatoire, francophone, omegle francais, azar francais, mtlchat, mtlchats">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://mtlchats.com/">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0b0f1a">
   <meta property="og:type" content="website">
   <meta property="og:title" content="MTL Chat - Rencontres vidéo à Montréal">
   <meta property="og:description" content="Rencontres vidéo aléatoires gratuites à Montréal et dans le monde. Parlez en face caméra en un clic.">
   <meta property="og:url" content="https://mtlchats.com/">
   <meta property="og:site_name" content="MTL Chat">
+  <meta property="og:locale" content="fr_CA">
+  <meta property="og:image" content="https://mtlchats.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Logo MTL Chat : une bulle vidéo et une bulle de messages qui se rencontrent">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="MTL Chat - Rencontres vidéo à Montréal">
   <meta name="twitter:description" content="Rencontres vidéo aléatoires gratuites à Montréal et dans le monde.">
+  <meta name="twitter:image" content="https://mtlchats.com/og-image.png">
+  <!-- Nom du site et logo pour Google -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"WebSite","name":"MTL Chat","alternateName":"MTL Chats","url":"https://mtlchats.com/"},
+    {"@type":"Organization","name":"MTL Chat","url":"https://mtlchats.com/","logo":"https://mtlchats.com/icon-512.png"}
+  ]}
+  </script>
+  <!-- Police du logo (seulement les lettres de « MTL Chat ») -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&text=MTL%20Chat&display=swap" rel="stylesheet">
 <title>MTL Chat - Rencontres vidéo Montréal</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -201,6 +224,14 @@
 #lobby-bg, .lobby-overlay { position: fixed; }
 .legal-links { position: relative; left: auto; right: auto; bottom: auto; width: 100%; flex-shrink: 0; margin-top: 10px; margin-bottom: env(safe-area-inset-bottom, 0px); }
 
+/* ---- Logo (deux bulles) ---- */
+.brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0; font-family: 'Baloo 2', 'Segoe UI', system-ui, sans-serif; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
+.brand-mark { display: block; width: 1.55em; height: 1.55em; flex-shrink: 0; }
+.brand-word { color: #f4f5fa; white-space: nowrap; }
+.brand-mtl { color: #e94560; }
+.top-bar .badge { display: inline-flex; align-items: center; gap: 6px; }
+.badge-mark { display: block; width: 18px; height: 18px; }
+
 /* ---- Carte profil partenaire (style Azar) ---- */
 #searchingBlock .remote-avatar { overflow: hidden; }
 .remote-placeholder { transition: opacity 0.3s; }
@@ -222,7 +253,7 @@
   <div class="auth-card">
     <div id="authStep1">
       <span class="auth-back" onclick="cancelAuthToLobby()">← Retour à l'accueil</span>
-      <div class="logo">MTL Chat 🌆</div>
+      <div class="logo brand"><img class="brand-mark" src="logo.svg" alt="" width="44" height="44"><span class="brand-word"><span class="brand-mtl">MTL</span> Chat</span></div>
       <div class="auth-sub">Rencontres vidéo entre francophones</div>
       <div class="auth-region">📍 Basé à Montréal, ouvert à tous les francophones du monde</div>
       <div id="googleBtnContainer" style="display:flex; justify-content:center; margin-bottom:12px;"></div>
@@ -283,7 +314,7 @@
   <div class="lobby-overlay"></div>
   <div class="profile-fab" id="profileFab" onclick="openProfileModal()">👤</div>
   <div class="lobby-content">
-    <div class="logo">MTL Chat 🌆</div>
+    <h1 class="logo brand"><img class="brand-mark" src="logo.svg" alt="" width="58" height="58"><span class="brand-word"><span class="brand-mtl">MTL</span> Chat</span></h1>
     <div class="tagline">Le rendez-vous vidéo des francophones de Montréal — et de partout dans le monde 🌍</div>
     <div class="auth-region" id="myProfileBadge" style="margin-bottom:10px;"></div>
     <div class="filter-block">
@@ -309,7 +340,7 @@
 <!-- ===================== APPEL VIDÉO ===================== -->
 <div class="screen" id="call">
   <div class="top-bar">
-    <div class="badge">MTL Chat <span class="montreal-tag" id="genderFilterBadge">Aléatoire</span></div>
+    <div class="badge"><img class="badge-mark" src="logo.svg" alt="" width="18" height="18">MTL Chat <span class="montreal-tag" id="genderFilterBadge">Aléatoire</span></div>
     <div class="badge" id="timerBadge">00:00</div>
   </div>
   <div class="top-vip-pill" id="topVipPill" style="display:none;">⭐ VIP actif</div>

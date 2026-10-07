@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="26" fill="#0b0f1a"/><g transform="translate(10.80 11.20) scale(0.8)"><defs><mask id="cut-fav" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+<rect width="120" height="120" fill="#fff"/>
+<circle cx="80" cy="68" r="35" fill="#000"/>
+<path d="M99 86 L109 106 L84 95 Z" fill="#000" stroke="#000" stroke-width="10" stroke-linejoin="round"/>
+</mask></defs>
+<g mask="url(#cut-fav)">
+<circle cx="46" cy="48" r="34" fill="#e94560"/>
+<path d="M24 70 L14 92 L40 79 Z" fill="#e94560" stroke="#e94560" stroke-width="4" stroke-linejoin="round"/>
+<path d="M39 35 L59 48 L39 61 Z" fill="#ffffff" stroke="#ffffff" stroke-width="5" stroke-linejoin="round"/>
+</g>
+<circle cx="80" cy="68" r="30" fill="#f59e0b"/>
+<path d="M99 86 L109 106 L84 95 Z" fill="#f59e0b" stroke="#f59e0b" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="69" cy="68" r="4" fill="#0b0f1a"/><circle cx="80" cy="68" r="4" fill="#0b0f1a"/><circle cx="91" cy="68" r="4" fill="#0b0f1a"/></g></svg>

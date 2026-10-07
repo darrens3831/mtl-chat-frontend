@@ -10,7 +10,9 @@ body {
 }
 .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
-.brand { font-size: 22px; font-weight: 800; color: #fff; text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-family: 'Baloo 2', 'Segoe UI', sans-serif; font-size: 26px; font-weight: 800; line-height: 1; color: #fff; text-decoration: none; }
+.brand img { display: block; }
+.brand-mtl { color: #e94560; }
 .back { color: #e94560; text-decoration: none; font-weight: 600; font-size: 14px; }
 .back:hover, .legal-nav a:hover, a:hover { text-decoration: underline; }
 h1 { color: #fff; font-size: 28px; line-height: 1.25; margin: 0 0 6px; }
