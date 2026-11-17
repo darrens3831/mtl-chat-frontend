@@ -184,6 +184,18 @@
   .guest-link { color: #f59e0b; background: none; border: none; padding: 0; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
   .limit-banner { background: rgba(233,69,96,0.12); border: 1px solid rgba(233,69,96,0.5); color: #fecdd3; font-size: 13.5px; line-height: 1.45; padding: 12px 14px; border-radius: 12px; margin: 8px 0 16px; text-align: left; }
   .limit-banner strong { color: #fff; }
+  /* ---- Signalement (comme OmeTV) ---- */
+  .report-btn { position: absolute; left: 16px; bottom: 172px; z-index: 30; width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(248,113,113,0.55); background: rgba(20,20,30,0.85); color: #fff; font-size: 22px; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+  .report-btn.visible { display: flex; }
+  .report-btn:hover { border-color: #f87171; transform: scale(1.06); }
+  .report-reasons { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; }
+  .report-reason { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 14px; border-radius: 12px; border: 1.5px solid #2d3454; background: #0e1224; color: #e2e8f0; font-size: 14.5px; font-weight: 600; cursor: pointer; text-align: left; }
+  .report-reason:hover, .report-reason:focus-visible { border-color: #f87171; background: rgba(248,113,113,0.08); outline: none; }
+  .report-cancel { width: 100%; margin-top: 10px; padding: 12px; border-radius: 12px; border: none; background: transparent; color: #94a3b8; font-size: 14px; cursor: pointer; }
+  .remote-video-area.reporting video { filter: blur(28px) brightness(0.6); }
+  .toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: #16a34a; color: #fff; font-size: 14px; font-weight: 600; padding: 11px 18px; border-radius: 22px; z-index: 150; box-shadow: 0 6px 20px rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; max-width: calc(100% - 32px); text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 768px) { .report-btn { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); left: 12px; width: 48px; height: 48px; font-size: 20px; } }
 
 /* ---- Optimisations mobile / responsive ---- */
 #call { height: 100vh; height: 100dvh; }
@@ -337,7 +349,7 @@
     <div class="calls-left" id="callsLeftText"></div>
     <div class="lobby-list" id="lobbyList"></div>
     <button class="start-btn" onclick="startCall()">▶ Démarrer</button>
-    <button class="vip-btn" onclick="openVipModal()">⭐ Devenir VIP</button>
+    <button class="vip-btn" id="lobbyVipBtn" onclick="openVipModal()">⭐ Devenir VIP</button>
   </div>
   <nav class="legal-links" aria-label="Pages légales">
     <a href="conditions.html">Conditions</a>
@@ -375,6 +387,7 @@
     <button class="ctrl-btn next" onclick="nextPartner()">🔄 Suivant</button>
     <button class="ctrl-btn danger" onclick="endChat()">📞</button>
   </div>
+  <button class="report-btn" id="reportBtn" onclick="openReportModal()" title="Signaler cette personne" aria-label="Signaler cette personne">🚩</button>
   <div class="chat-toggle">
     <button class="ctrl-btn" id="chatBtn" onclick="toggleChat()" style="position:relative;">💬<span class="unread-dot" id="unreadDot"></span></button>
   </div>
@@ -422,6 +435,35 @@
     <div id="embeddedCheckout" style="margin-top:14px;"></div>
   </div>
 </div>
+<!-- ===================== MODAL SIGNALEMENT ===================== -->
+<div class="modal-backdrop" id="reportModalBackdrop">
+  <div class="vip-modal age-gate">
+    <span class="close-x" onclick="closeReportModal()">✕</span>
+    <div class="paywall-icon">🚩</div>
+    <h2 id="reportTitle">Signaler</h2>
+    <div class="vip-sub">Choisis le motif. Tu passes aussitôt à la personne suivante et tu ne la reverras plus.</div>
+    <div class="report-reasons">
+      <button type="button" class="report-reason" onclick="submitReport('nudite')">🔞 Nudité ou contenu sexuel</button>
+      <button type="button" class="report-reason" onclick="submitReport('mineur')">👶 Semble avoir moins de 18 ans</button>
+      <button type="button" class="report-reason" onclick="submitReport('harcelement')">😡 Insultes, harcèlement ou menaces</button>
+      <button type="button" class="report-reason" onclick="submitReport('violence')">⚠️ Violence ou contenu choquant</button>
+      <button type="button" class="report-reason" onclick="submitReport('spam')">📢 Spam, publicité ou arnaque</button>
+      <button type="button" class="report-reason" onclick="submitReport('autre')">❓ Autre</button>
+    </div>
+    <button type="button" class="report-cancel" onclick="closeReportModal()">Annuler</button>
+  </div>
+</div>
+<!-- ===================== MODAL ACCÈS SUSPENDU ===================== -->
+<div class="modal-backdrop" id="bannedModalBackdrop">
+  <div class="vip-modal age-gate">
+    <span class="close-x" onclick="closeBannedModal()">✕</span>
+    <div class="paywall-icon">🚫</div>
+    <h2>Accès suspendu</h2>
+    <div class="vip-sub" id="bannedText">Plusieurs personnes t'ont signalé. Ton accès aux appels est suspendu pour le moment.</div>
+    <div class="age-gate-note">Respecte les <a href="conditions.html" target="_blank" rel="noopener">règles de conduite</a>. Si tu penses que c'est une erreur, écris-nous à <a href="mailto:mtlchats1@gmail.com">mtlchats1@gmail.com</a>.</div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <!-- ===================== MODAL ÂGE (MODE INVITÉ, SANS COMPTE) ===================== -->
 <div class="modal-backdrop" id="ageGateBackdrop">
   <div class="vip-modal age-gate">
@@ -765,6 +807,8 @@ function refreshVipUI() {
   const vip = isVip();
   document.getElementById('lobbyVipBadge').style.display = vip ? 'inline-flex' : 'none';
   document.getElementById('topVipPill').style.display = vip ? 'flex' : 'none';
+  const lobbyVipBtn = document.getElementById('lobbyVipBtn');
+  if (lobbyVipBtn) lobbyVipBtn.textContent = vip ? '⭐ Prolonger mon VIP' : '⭐ Devenir VIP';
   const callsUsed = getCallsUsed();
   const callsLeftEl = document.getElementById('callsLeftText');
   if (vip) {
@@ -1025,8 +1069,9 @@ function startCall() {
     const rvp = document.getElementById('remoteVideo');
     if (rvp) { rvp.muted = false; rvp.volume = 1; }
   } catch(e) {}
+  if (bannedUntil() > Date.now()) { showBannedModal(bannedUntil()); return; }
   const account = getAccount();
-  // Sans compte : on demande seulement l'âge (une fois), puis l'appel démarre.
+  // Sans compte : on demande l'âge et le genre (une fois par jour), puis l'appel démarre.
   if (!account && !guestAgeOk()) {
     openAgeGate();
     return;
@@ -1560,6 +1605,8 @@ socket.on('matched', async (data) => {
   closePeerConnection();
   isInitiator = data.initiator;
   currentPartner = data.partnerProfile || {};
+  reportable = { matchId: data.matchId, name: currentPartner.name || 'Partenaire', until: 0 };
+  updateReportBtn();
   showPartnerProfile(currentPartner);
   document.getElementById('chatHeaderName').textContent = (currentPartner.name || 'Partenaire') + (currentPartner.vip === true ? ' ⭐ VIP' : '');
   addMessage('Connecté(e) avec ' + (currentPartner.name || 'un partenaire') + ' !', false);
@@ -1633,6 +1680,73 @@ socket.on('limit-reached', (d) => {
   openLimitModal();
 });
 
+// ---------- SIGNALEMENT (comme OmeTV) ----------
+// Bouton 🚩 pendant l'appel (et encore un peu après le départ du partenaire). Un motif = signalement
+// envoyé au serveur + passage immédiat au suivant. Le serveur suspend une personne signalée par
+// plusieurs personnes différentes.
+const REPORT_AFTER_MS = 110 * 1000; // le serveur accepte jusqu'à 2 minutes après le départ
+let reportable = null;              // { matchId, name, until } : dernière personne signalable
+let reportBtnTimer = null;
+function canReport() { return !!reportable && (!!currentPartner || reportable.until > Date.now()); }
+function updateReportBtn() {
+  const btn = document.getElementById('reportBtn');
+  if (!btn) return;
+  btn.classList.toggle('visible', canReport());
+  clearTimeout(reportBtnTimer);
+  if (!currentPartner && canReport()) reportBtnTimer = setTimeout(updateReportBtn, reportable.until - Date.now() + 50);
+}
+function openReportModal() {
+  if (!canReport()) { updateReportBtn(); return; }
+  document.getElementById('reportTitle').textContent = 'Signaler ' + (reportable.name || 'cette personne');
+  document.getElementById('remoteArea').classList.add('reporting'); // image floutée pendant le choix
+  document.getElementById('reportModalBackdrop').classList.add('open');
+}
+function closeReportModal() {
+  document.getElementById('remoteArea').classList.remove('reporting');
+  document.getElementById('reportModalBackdrop').classList.remove('open');
+}
+function submitReport(reason) {
+  const target = reportable;
+  const stillInCall = !!currentPartner;
+  closeReportModal();
+  if (!target || !canReport()) { updateReportBtn(); return; }
+  socket.emit('report', { reason, matchId: target.matchId });
+  reportable = null;
+  updateReportBtn();
+  showToast('✅ Merci ! Ton signalement a été envoyé.');
+  if (stillInCall) nextPartner();
+}
+let toastTimer = null;
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// Accès suspendu après plusieurs signalements (décidé par le serveur)
+const BANNED_KEY = 'mtlchat_banned_until';
+function bannedUntil() { return parseInt(lsGet(BANNED_KEY) || '0', 10); }
+function showBannedModal(until) {
+  const when = new Date(until);
+  const txt = until > Date.now()
+    ? "Plusieurs personnes t'ont signalé. Tu pourras refaire des appels à partir du " +
+      when.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long' }) + ' à ' +
+      when.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }) + '.'
+    : "Plusieurs personnes t'ont signalé. Ton accès aux appels est suspendu pour le moment.";
+  document.getElementById('bannedText').textContent = txt;
+  document.getElementById('bannedModalBackdrop').classList.add('open');
+}
+function closeBannedModal() { document.getElementById('bannedModalBackdrop').classList.remove('open'); }
+socket.on('banned', (d) => {
+  const until = (d && Number(d.until)) || 0;
+  if (until) lsSet(BANNED_KEY, String(until));
+  closeReportModal();
+  if (document.getElementById('call').classList.contains('active')) leaveCallCompletely();
+  showBannedModal(until);
+});
+
 socket.on('partner-left', () => {
   closePeerConnection();
   if (document.getElementById('call').classList.contains('active')) {
@@ -1646,7 +1760,10 @@ socket.on('partner-left', () => {
 function closePeerConnection() {
   if (window.__connWatchdog) { clearTimeout(window.__connWatchdog); window.__connWatchdog = null; }
   pendingCandidates = [];
+  // La personne qu'on vient de quitter peut encore être signalée pendant un peu moins de 2 minutes.
+  if (currentPartner && reportable && !reportable.until) reportable.until = Date.now() + REPORT_AFTER_MS;
   currentPartner = null;
+  updateReportBtn();
   const pvp = document.getElementById('partnerVipPill');
   if (pvp) pvp.style.display = 'none';
   if (peerConnection) {
