@@ -176,6 +176,14 @@
   .auth-error { background: rgba(239,68,68,0.12); border: 1px solid #ef4444; color: #fca5a5; font-size: 13px; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; display: none; text-align: left; }
   .auth-back { color: #94a3b8; font-size: 13px; cursor: pointer; margin-bottom: 14px; display: inline-block; }
   .auth-submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; margin-top: 4px; background: linear-gradient(135deg, #e94560, #c13a4f); color: white; font-weight: 700; font-size: 15px; }
+  /* ---- Mode invité : âge demandé avant le premier appel ---- */
+  .age-gate { max-width: 380px; text-align: center; }
+  .age-gate .age-input { text-align: center; font-size: 22px; font-weight: 700; padding: 14px; letter-spacing: 1px; -moz-appearance: textfield; }
+  .age-gate .age-input::-webkit-outer-spin-button, .age-gate .age-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .age-gate .age-gate-note a { color: #94a3b8; }
+  .guest-link { color: #f59e0b; background: none; border: none; padding: 0; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+  .limit-banner { background: rgba(233,69,96,0.12); border: 1px solid rgba(233,69,96,0.5); color: #fecdd3; font-size: 13.5px; line-height: 1.45; padding: 12px 14px; border-radius: 12px; margin: 8px 0 16px; text-align: left; }
+  .limit-banner strong { color: #fff; }
 
 /* ---- Optimisations mobile / responsive ---- */
 #call { height: 100vh; height: 100dvh; }
@@ -256,6 +264,7 @@
       <div class="logo brand"><img class="brand-mark" src="logo.svg" alt="" width="44" height="44"><span class="brand-word"><span class="brand-mtl">MTL</span> Chat</span></div>
       <div class="auth-sub">Rencontres vidéo entre francophones</div>
       <div class="auth-region">📍 Basé à Montréal, ouvert à tous les francophones du monde</div>
+      <div class="auth-sub" style="margin:-8px 0 18px;">Crée ton profil pour montrer ton pseudo et ta photo à tes partenaires.</div>
       <div id="googleBtnContainer" style="display:flex; justify-content:center; margin-bottom:12px;"></div>
       <div class="age-gate-note">
         🔒 En continuant avec Google, tu confirmes être âgé de <strong>18 ans ou plus</strong>. MTL Chat est strictement réservé aux adultes.
@@ -387,9 +396,10 @@
     <span class="close-x" onclick="closeVipModal()">✕</span>
     <h2>⭐ Passe VIP</h2>
     <div class="vip-sub">Débloque l'expérience complète sur MTL Chat</div>
+    <div class="limit-banner" id="vipLimitBanner" style="display:none;">⏳ Tu as utilisé tes <strong><span id="vipLimitCount">300</span> appels gratuits</strong> d'aujourd'hui. Passe VIP pour continuer tout de suite, <strong>sans limite</strong>, ou reviens demain.</div>
     <ul class="vip-perks">
+      <li>✅<span>Appels illimités (vs <span id="vipPerkLimit">300</span> appels/jour en gratuit)</span></li>
       <li>✅ Filtre de genre (choisis Filles ou Garçons)</li>
-      <li>✅ Appels illimités (vs 300 appels/jour en gratuit)</li>
       <li>✅ File d'attente prioritaire (tu es jumelé en premier)</li>
       <li>✅ Badge VIP visible par tes partenaires pendant les appels</li>
     </ul>
@@ -412,14 +422,25 @@
     <div id="embeddedCheckout" style="margin-top:14px;"></div>
   </div>
 </div>
-<!-- ===================== MODAL PAYWALL ===================== -->
-<div class="modal-backdrop" id="limitModalBackdrop">
-  <div class="vip-modal" style="max-width:380px; text-align:center;">
-    <span class="close-x" onclick="closeLimitModal()">✕</span>
-    <div class="paywall-icon">⏳</div>
-    <h2>Limite atteinte</h2>
-    <div class="vip-sub">Tu as utilisé tes 300 appels gratuits d'aujourd'hui. Reviens demain, ou passe VIP pour des appels illimités sans attendre.</div>
-    <button class="pay-btn" onclick="closeLimitModal(); openVipModal();">⭐ Voir les offres VIP</button>
+<!-- ===================== MODAL ÂGE (MODE INVITÉ, SANS COMPTE) ===================== -->
+<div class="modal-backdrop" id="ageGateBackdrop">
+  <div class="vip-modal age-gate">
+    <span class="close-x" onclick="closeAgeGate()">✕</span>
+    <div class="paywall-icon">🔞</div>
+    <h2>Avant de commencer</h2>
+    <div class="vip-sub" id="ageGateSub">Pas besoin de compte pour essayer. MTL Chat est réservé aux 18 ans et plus.</div>
+    <div class="auth-error" id="ageGateError"></div>
+    <div id="ageGateForm">
+      <label class="auth-label" for="ageGateInput">Ton âge</label>
+      <input type="number" inputmode="numeric" class="auth-input age-input" id="ageGateInput" min="1" max="120" placeholder="Ex. 25" onkeydown="if(event.key==='Enter') confirmAgeGate()">
+      <label class="auth-label">Tu es</label>
+      <div class="gender-row" id="guestGenderRow">
+        <div class="gender-opt" data-gender="F" onclick="selectGuestGender('F', this)">👩 Femme</div>
+        <div class="gender-opt" data-gender="M" onclick="selectGuestGender('M', this)">👨 Homme</div>
+      </div>
+      <button class="auth-submit-btn" onclick="confirmAgeGate()">▶ C'est parti</button>
+    </div>
+    <div class="age-gate-note">En continuant, tu confirmes avoir 18 ans ou plus et tu acceptes les <a href="conditions.html" target="_blank" rel="noopener">conditions d'utilisation</a>.</div>
   </div>
 </div>
 <!-- ===================== MODAL PROFIL ===================== -->
@@ -669,12 +690,7 @@ function enterLobby() {
   showScreen('lobby');
   populateLobbyList();
   refreshVipUI();
-  const badge = document.getElementById('myProfileBadge');
-  if (account) {
-    const genderLabel = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
-    const name = account.pseudo ? account.pseudo : 'Membre';
-    badge.textContent = 'Connecté(e) en tant que ' + name + ' • ' + genderLabel;
-  }
+  renderMyBadge();
   updateProfileFabIcon();
   if (pendingStartAfterAuth) {
     pendingStartAfterAuth = false;
@@ -762,6 +778,8 @@ function refreshVipUI() {
 }
 
 function openVipModal() {
+            document.getElementById('vipLimitBanner').style.display = 'none'; // affiché seulement par openLimitModal
+            document.getElementById('vipPerkLimit').textContent = FREE_CALL_LIMIT;
             document.getElementById('vipModalBackdrop').classList.add('open');
             if (embeddedCheckoutInstance) { try { embeddedCheckoutInstance.destroy(); } catch(e){} embeddedCheckoutInstance = null; }
             const ec = document.getElementById('embeddedCheckout'); if (ec) ec.innerHTML = '';
@@ -858,8 +876,115 @@ async function checkPaymentReturn() {
   history.replaceState(null, '', window.location.pathname);
 }
 
-function openLimitModal() { document.getElementById('limitModalBackdrop').classList.add('open'); }
-function closeLimitModal() { document.getElementById('limitModalBackdrop').classList.remove('open'); }
+// Limite d'appels gratuits atteinte : on ouvre directement les offres VIP (appels illimités),
+// avec un message qui explique pourquoi.
+function openLimitModal() {
+  openVipModal();
+  document.getElementById('vipLimitCount').textContent = FREE_CALL_LIMIT;
+  document.getElementById('vipLimitBanner').style.display = 'block';
+}
+function closeLimitModal() { closeVipModal(); }
+
+// ---------- MODE INVITÉ : démarrer sans compte, avec l'âge (18 ans et plus) et le genre ----------
+// Redemandés à chaque nouvelle journée, au moment où les appels gratuits repartent à zéro
+// (même horloge que le serveur : minuit à Montréal). Moins de 18 ans : accès bloqué 24 h sur
+// cet appareil (pour qu'on ne puisse pas simplement réessayer avec un autre âge).
+const GUEST_KEY = 'mtlchat_guest';
+const UNDERAGE_KEY = 'mtlchat_underage_until';
+const UNDERAGE_LOCK_MS = 24 * 60 * 60 * 1000;
+let guestThisVisit = null;       // copie en mémoire si le stockage du navigateur est bloqué (navigation privée)
+let selectedGuestGender = null;
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsRemove(k) { try { localStorage.removeItem(k); } catch (e) {} }
+const montrealDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' });
+function montrealDay() { return montrealDayFormatter.format(new Date()); }
+// Profil invité de la journée ({ age, gender, day }) ou null s'il faut le redemander.
+function guestProfile() {
+  if (underageLocked()) return null;
+  let g = guestThisVisit;
+  if (!g) { try { g = JSON.parse(lsGet(GUEST_KEY) || 'null'); } catch (e) { g = null; } }
+  if (!g || g.day !== montrealDay() || !(g.age >= 18) || (g.gender !== 'F' && g.gender !== 'M')) return null;
+  return g;
+}
+function guestAgeOk() { return !!guestProfile(); }
+function selectGuestGender(g, el) {
+  selectedGuestGender = g;
+  document.querySelectorAll('#guestGenderRow .gender-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  if (!underageLocked()) document.getElementById('ageGateError').style.display = 'none';
+}
+function underageLocked() { return parseInt(lsGet(UNDERAGE_KEY) || '0', 10) > Date.now(); }
+function showAgeGateBlocked() {
+  document.getElementById('ageGateForm').style.display = 'none';
+  document.getElementById('ageGateSub').style.display = 'none';
+  const err = document.getElementById('ageGateError');
+  err.textContent = "🔒 Désolé, MTL Chat est strictement réservé aux personnes de 18 ans et plus.";
+  err.style.display = 'block';
+}
+function openAgeGate() {
+  const input = document.getElementById('ageGateInput');
+  document.getElementById('ageGateForm').style.display = '';
+  document.getElementById('ageGateSub').style.display = '';
+  document.getElementById('ageGateError').style.display = 'none';
+  input.value = '';
+  selectedGuestGender = null;
+  document.querySelectorAll('#guestGenderRow .gender-opt').forEach(o => o.classList.remove('selected'));
+  document.getElementById('ageGateBackdrop').classList.add('open');
+  if (underageLocked()) { showAgeGateBlocked(); return; }
+  setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
+}
+function closeAgeGate() { document.getElementById('ageGateBackdrop').classList.remove('open'); }
+function confirmAgeGate() {
+  if (underageLocked()) { showAgeGateBlocked(); return; }
+  const raw = String(document.getElementById('ageGateInput').value || '').trim();
+  const age = Number(raw);
+  const err = document.getElementById('ageGateError');
+  if (!raw || !Number.isInteger(age) || age < 1 || age > 120) {
+    err.textContent = "Entre ton âge en chiffres (ex. 25).";
+    err.style.display = 'block';
+    return;
+  }
+  if (age < 18) {
+    lsSet(UNDERAGE_KEY, String(Date.now() + UNDERAGE_LOCK_MS));
+    lsRemove(GUEST_KEY);
+    guestThisVisit = null;
+    showAgeGateBlocked();
+    return;
+  }
+  if (selectedGuestGender !== 'F' && selectedGuestGender !== 'M') {
+    err.textContent = "Choisis si tu es une femme ou un homme pour continuer.";
+    err.style.display = 'block';
+    return;
+  }
+  guestThisVisit = { age, gender: selectedGuestGender, day: montrealDay() };
+  lsSet(GUEST_KEY, JSON.stringify(guestThisVisit));
+  closeAgeGate();
+  renderMyBadge();
+  startCall();
+}
+
+// Ligne sous le titre de l'accueil : profil connecté, ou invitation (facultative) à se connecter avec Google.
+function renderMyBadge() {
+  const badge = document.getElementById('myProfileBadge');
+  const account = getAccount();
+  badge.textContent = '';
+  if (account) {
+    const genderLabel = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
+    badge.textContent = 'Connecté(e) en tant que ' + (account.pseudo || 'Membre') + ' • ' + genderLabel;
+    return;
+  }
+  const guest = guestProfile();
+  badge.appendChild(document.createTextNode(guest
+    ? 'Invité(e) • ' + (guest.gender === 'F' ? '👩 Femme' : '👨 Homme') + ' • '
+    : 'Pas besoin de compte pour essayer • '));
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'guest-link';
+  link.textContent = 'Crée ton profil avec Google';
+  link.onclick = () => { pendingStartAfterAuth = false; backToAuthStep1(); showScreen('auth'); };
+  badge.appendChild(link);
+}
 
 function populateLobbyList() {
   const list = document.getElementById('lobbyList');
@@ -901,9 +1026,9 @@ function startCall() {
     if (rvp) { rvp.muted = false; rvp.volume = 1; }
   } catch(e) {}
   const account = getAccount();
-  if (!account) {
-    pendingStartAfterAuth = true;
-    showScreen('auth');
+  // Sans compte : on demande seulement l'âge (une fois), puis l'appel démarre.
+  if (!account && !guestAgeOk()) {
+    openAgeGate();
     return;
   }
   if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
@@ -1031,10 +1156,10 @@ function formatAuthMethod(m) {
 function closeProfileModal() { document.getElementById('profileModalBackdrop').classList.remove('open'); }
 
 function logout() {
-  if (!confirm("Te déconnecter de MTL Chat ? Tu devras te reconnecter pour démarrer un nouvel appel.")) return;
+  if (!confirm("Te déconnecter de MTL Chat ? Tu pourras continuer sans compte.")) return;
   localStorage.removeItem('mtlchat_account');
   closeProfileModal();
-  document.getElementById('myProfileBadge').textContent = '';
+  renderMyBadge();
   document.getElementById('profileFab').innerHTML = '👤';
   showScreen('lobby');
 }
@@ -1352,7 +1477,8 @@ let ICE_SERVERS = { iceServers: [
       const account = getAccount();
       const filterCode = currentGenderFilter === 'female' ? 'F' : (currentGenderFilter === 'male' ? 'M' : 'random');
       return {
-        gender: account ? account.gender : 'M',
+        // Invité : genre choisi pour la journée (sans choix valide, le serveur le traite comme inconnu)
+        gender: account ? account.gender : ((guestProfile() || {}).gender || undefined),
         filter: filterCode,
         name: (account && account.pseudo) ? account.pseudo : 'Anonyme',
         photo: (account && account.photo) ? account.photo : null,
@@ -1560,6 +1686,13 @@ await refreshIceServers();
     }
 
 function nextPartner() {
+  // Invité dont la journée est terminée : on redemande l'âge et le genre avant de continuer.
+  if (!getAccount() && !guestAgeOk()) {
+    leaveCallCompletely();
+    renderMyBadge();
+    openAgeGate();
+    return;
+  }
   if (!isVip() && getCallsUsed() >= FREE_CALL_LIMIT) {
     leaveCallCompletely(); // coupe vraiment l'appel (avant : le partenaire restait connecté, micro ouvert)
     openLimitModal();
@@ -1683,12 +1816,7 @@ window.onload = () => {
   shrinkStoredPhoto();
   checkPaymentReturn().then(syncVipStatus).then(syncCallsStatus);
   initGoogleSignIn();
-  const account = getAccount();
-  if (account) {
-    const genderLabel = account.gender === 'F' ? '👩 Femme' : '👨 Homme';
-    const name = account.pseudo ? account.pseudo : 'Membre';
-    document.getElementById('myProfileBadge').textContent = 'Connecté(e) en tant que ' + name + ' • ' + genderLabel;
-  }
+  renderMyBadge();
 };
 </script>
 </body>
