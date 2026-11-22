@@ -473,6 +473,8 @@
     <div class="vip-sub" id="ageGateSub">Pas besoin de compte pour essayer. MTL Chat est réservé aux 18 ans et plus.</div>
     <div class="auth-error" id="ageGateError"></div>
     <div id="ageGateForm">
+      <label class="auth-label" for="ageGateName">Ton prénom (ou ton nom)</label>
+      <input type="text" class="auth-input" id="ageGateName" maxlength="20" autocomplete="given-name" autocapitalize="words" placeholder="Ex. Sophie" onkeydown="if(event.key==='Enter') confirmAgeGate()">
       <label class="auth-label" for="ageGateInput">Ton âge</label>
       <input type="number" inputmode="numeric" class="auth-input age-input" id="ageGateInput" min="1" max="120" placeholder="Ex. 25" onkeydown="if(event.key==='Enter') confirmAgeGate()">
       <label class="auth-label">Tu es</label>
@@ -579,7 +581,7 @@ function handleGoogleCredential(response) {
   goToAuthStep3();
   setTimeout(() => {
     const pseudoField = document.getElementById('authPseudo');
-    if (pseudoField && !pseudoField.value) pseudoField.value = profile.given_name || '';
+    if (pseudoField && !pseudoField.value) pseudoField.value = cleanGuestName(lsGet(GUEST_NAME_KEY)) || profile.given_name || '';
     if (uploadedPhotoDataUrl) {
       const preview = document.getElementById('photoPreview');
       if (preview) preview.innerHTML = '<img src="' + uploadedPhotoDataUrl + '">';
@@ -934,6 +936,7 @@ function closeLimitModal() { closeVipModal(); }
 // (même horloge que le serveur : minuit à Montréal). Moins de 18 ans : accès bloqué 24 h sur
 // cet appareil (pour qu'on ne puisse pas simplement réessayer avec un autre âge).
 const GUEST_KEY = 'mtlchat_guest';
+const GUEST_NAME_KEY = 'mtlchat_guest_name'; // prénom gardé d'une journée à l'autre (pré-rempli)
 const UNDERAGE_KEY = 'mtlchat_underage_until';
 const UNDERAGE_LOCK_MS = 24 * 60 * 60 * 1000;
 let guestThisVisit = null;       // copie en mémoire si le stockage du navigateur est bloqué (navigation privée)
@@ -943,12 +946,24 @@ function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lsRemove(k) { try { localStorage.removeItem(k); } catch (e) {} }
 const montrealDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' });
 function montrealDay() { return montrealDayFormatter.format(new Date()); }
-// Profil invité de la journée ({ age, gender, day }) ou null s'il faut le redemander.
+// Prénom de l'invité : lettres (accents compris), chiffres, espace, trait d'union, point, _ et apostrophe.
+// Au moins 2 lettres, 20 caractères max. Pas de liens ni d'adresses (@, /, www...).
+// L'apostrophe droite devient ’ (le serveur retire ' mais garde ’ : « D'Arcy » reste lisible).
+function cleanGuestName(raw) {
+  const s = String(raw || '').replace(/'/g, '’').replace(/\s+/g, ' ').trim();
+  if (s.length < 2 || s.length > 20) return '';
+  if (!/^[\p{L}\p{M}0-9 ._’-]+$/u.test(s)) return '';
+  if ((s.match(/\p{L}/gu) || []).length < 2) return '';
+  if (/www|http|\.(com|ca|net|org|io|me|gg)\b/i.test(s)) return '';
+  return s;
+}
+// Profil invité de la journée ({ name, age, gender, day }) ou null s'il faut le redemander.
 function guestProfile() {
   if (underageLocked()) return null;
   let g = guestThisVisit;
   if (!g) { try { g = JSON.parse(lsGet(GUEST_KEY) || 'null'); } catch (e) { g = null; } }
   if (!g || g.day !== montrealDay() || !(g.age >= 18) || (g.gender !== 'F' && g.gender !== 'M')) return null;
+  if (!cleanGuestName(g.name)) return null; // invités d'avant l'ajout du prénom : on le leur demande une fois
   return g;
 }
 function guestAgeOk() { return !!guestProfile(); }
@@ -968,15 +983,19 @@ function showAgeGateBlocked() {
 }
 function openAgeGate() {
   const input = document.getElementById('ageGateInput');
+  const nameInput = document.getElementById('ageGateName');
   document.getElementById('ageGateForm').style.display = '';
   document.getElementById('ageGateSub').style.display = '';
   document.getElementById('ageGateError').style.display = 'none';
   input.value = '';
+  // Le prénom de la dernière visite est pré-rempli (l'âge et le genre sont redemandés chaque jour).
+  nameInput.value = cleanGuestName((guestThisVisit && guestThisVisit.name) || lsGet(GUEST_NAME_KEY)) || '';
   selectedGuestGender = null;
   document.querySelectorAll('#guestGenderRow .gender-opt').forEach(o => o.classList.remove('selected'));
   document.getElementById('ageGateBackdrop').classList.add('open');
   if (underageLocked()) { showAgeGateBlocked(); return; }
-  setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
+  const first = nameInput.value ? input : nameInput;
+  setTimeout(() => { try { first.focus(); } catch (e) {} }, 50);
 }
 function closeAgeGate() { document.getElementById('ageGateBackdrop').classList.remove('open'); }
 function confirmAgeGate() {
@@ -984,6 +1003,16 @@ function confirmAgeGate() {
   const raw = String(document.getElementById('ageGateInput').value || '').trim();
   const age = Number(raw);
   const err = document.getElementById('ageGateError');
+  const rawName = String(document.getElementById('ageGateName').value || '').trim();
+  const name = cleanGuestName(rawName);
+  if (!name) {
+    err.textContent = rawName
+      ? "Ton prénom doit avoir de 2 à 20 caractères (lettres, chiffres, espace ou trait d'union), sans lien ni adresse."
+      : "Écris ton prénom (ou ton nom) pour continuer.";
+    err.style.display = 'block';
+    try { document.getElementById('ageGateName').focus(); } catch (e) {}
+    return;
+  }
   if (!raw || !Number.isInteger(age) || age < 1 || age > 120) {
     err.textContent = "Entre ton âge en chiffres (ex. 25).";
     err.style.display = 'block';
@@ -1001,8 +1030,9 @@ function confirmAgeGate() {
     err.style.display = 'block';
     return;
   }
-  guestThisVisit = { age, gender: selectedGuestGender, day: montrealDay() };
+  guestThisVisit = { name, age, gender: selectedGuestGender, day: montrealDay() };
   lsSet(GUEST_KEY, JSON.stringify(guestThisVisit));
+  lsSet(GUEST_NAME_KEY, name);
   closeAgeGate();
   renderMyBadge();
   startCall();
@@ -1020,7 +1050,7 @@ function renderMyBadge() {
   }
   const guest = guestProfile();
   badge.appendChild(document.createTextNode(guest
-    ? 'Invité(e) • ' + (guest.gender === 'F' ? '👩 Femme' : '👨 Homme') + ' • '
+    ? 'Invité(e) • ' + guest.name + ' • ' + (guest.gender === 'F' ? '👩 Femme' : '👨 Homme') + ' • '
     : 'Pas besoin de compte pour essayer • '));
   const link = document.createElement('button');
   link.type = 'button';
@@ -1525,7 +1555,8 @@ let ICE_SERVERS = { iceServers: [
         // Invité : genre choisi pour la journée (sans choix valide, le serveur le traite comme inconnu)
         gender: account ? account.gender : ((guestProfile() || {}).gender || undefined),
         filter: filterCode,
-        name: (account && account.pseudo) ? account.pseudo : 'Anonyme',
+        // Invité : le prénom écrit dans « Avant de commencer » (vu par le partenaire)
+        name: account ? (account.pseudo || 'Anonyme') : ((guestProfile() || {}).name || 'Anonyme'),
         photo: (account && account.photo) ? account.photo : null,
         location: (account && account.location) ? account.location : 'Montréal, QC',
         country: (account && account.country) ? account.country : 'CA',
